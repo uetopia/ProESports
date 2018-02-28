@@ -61,7 +61,10 @@ struct FMyActivePlayer {
 		FString gamePlayerKeyId;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
 		FUniqueNetIdRepl UniqueId;
+	AMyPlayerController* PlayerController;
 
+	FTimerHandle GetPlayerInfoDelayHandle;
+	FTimerDelegate GetPlayerInfoTimerDel;
 };
 
 USTRUCT(BlueprintType)
@@ -113,6 +116,8 @@ struct FMyMatchPlayer {
 		FString gamePlayerKeyId;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
 		FUniqueNetIdRepl UniqueId;
+
+	AMyPlayerController* PlayerController;
 
 };
 
@@ -275,8 +280,8 @@ class PROESPORTS_API UMyGameInstance : public UGameInstance
 
 
 
-	bool PerformHttpRequest(void(UMyGameInstance::*delegateCallback)(FHttpRequestPtr, FHttpResponsePtr, bool), FString APIURI, FString ArgumentString);
-	bool PerformJsonHttpRequest(void(UMyGameInstance::*delegateCallback)(FHttpRequestPtr, FHttpResponsePtr, bool), FString APIURI, FString ArgumentString);
+	bool PerformHttpRequest(void(UMyGameInstance::*delegateCallback)(FHttpRequestPtr, FHttpResponsePtr, bool), FString APIURI, FString ArgumentString, FString AccessToken);
+	bool PerformJsonHttpRequest(void(UMyGameInstance::*delegateCallback)(FHttpRequestPtr, FHttpResponsePtr, bool), FString APIURI, FString ArgumentString, FString AccessToken);
 
 	/* Handles to manage timers */
 	FTimerHandle ServerLinksTimerHandle;

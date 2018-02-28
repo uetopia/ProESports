@@ -119,7 +119,14 @@ FString AMyGameMode::InitNewPlayer(APlayerController* NewPlayerController, const
 		*/
 		UMyGameInstance* TheGameInstance = Cast<UMyGameInstance>(GetWorld()->GetGameInstance());
 		AMyPlayerController* playerC = Cast<AMyPlayerController>(NewPlayerController);
-		TheGameInstance->ActivatePlayer(playerC, Name, playerId, UniqueId);
+
+		// WE need to move this...  We don't have the player access token yet.
+		//TheGameInstance->ActivatePlayer(playerC, Name, playerId, UniqueId);
+
+		// save the vars in the controller so we can run activate later.
+		playerC->UniqueId = UniqueId;
+		playerC->playerKeyId = Name;
+		playerC->playerIDTemp = playerId;
 
 		// Register the player with the session
 		// The uniqueId changed incoming and it's breaking everything else downstream

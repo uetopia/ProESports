@@ -137,6 +137,12 @@ struct FMyMatchInfo {
 		bool authorization;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
 		FString encryption;
+	// Keep track of which game mode this match should be using
+	// The keyId is the unique identifier, and the title is the Subsystem reference
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
+		int32 gameModeKeyId;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
+		FString gameModeTitle;
 };
 
 USTRUCT(BlueprintType)

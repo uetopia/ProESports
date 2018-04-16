@@ -393,6 +393,8 @@ void UMyGameInstance::GetMatchInfoComplete(FHttpRequestPtr HttpRequest, FHttpRes
 					&MatchInfo,
 					0, 0);
 
+				
+
 				// Put replicated data in game state
 				AGameState* gameState = Cast<AGameState>(GetWorld()->GetGameState());
 				AMyGameState* uetopiaGameState = Cast<AMyGameState>(gameState);
@@ -3145,7 +3147,21 @@ bool UMyGameInstance::RecordKill(int32 killerPlayerID, int32 victimPlayerID)
 					MatchInfo.players[b].currentRoundAlive = true;
 				}
 
+				// Check our game mode so we travel to the appropriate level
 				FString UrlString = TEXT("/Game/Maps/ThirdPersonExampleMap?listen");
+				if (MatchInfo.gameModeTitle == "1v1")
+				{
+					UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetMatchInfo] gameModeTitle = 1v1"));
+					// For 1v1 stay on the default map
+					
+				}
+				else {
+					UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetMatchInfo] gameModeTitle != 1v1"));
+					// For everything else, travel to the other map - just an example.
+					GetWorld()->GetAuthGameMode()->bUseSeamlessTravel = true;
+					UrlString = TEXT("/Game/Maps/ThirdPersonExampleMap1?listen");
+				}
+				
 				GetWorld()->GetAuthGameMode()->bUseSeamlessTravel = true;
 				GetWorld()->ServerTravel(UrlString);
 			}
@@ -3441,7 +3457,19 @@ void UMyGameInstance::AttemptStartMatch()
 		UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] AttemptStartMatch - Dedicated server found."));
 		// travel to the third person map
 		MatchStarted = true;
+		// Handle travelling to different maps based on the game mode 
 		FString UrlString = TEXT("/Game/Maps/ThirdPersonExampleMap?listen");
+		if (MatchInfo.gameModeTitle == "1v1")
+		{
+			UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetMatchInfo] gameModeTitle = 1v1"));
+			// For 1v1 stay on the default map
+		}
+		else {
+			UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetMatchInfo] gameModeTitle != 1v1"));
+			// For everything else, travel to the other map - just an example.
+			UrlString = TEXT("/Game/Maps/ThirdPersonExampleMap1?listen");
+		}
+		
 		GetWorld()->GetAuthGameMode()->bUseSeamlessTravel = true;
 		GetWorld()->ServerTravel(UrlString);
 	}

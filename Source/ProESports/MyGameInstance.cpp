@@ -2151,7 +2151,9 @@ bool UMyGameInstance::StartMatchmaking(ULocalPlayer* PlayerOwner, FString MatchT
 
 			//UE_LOG(LogTemp, Verbose, TEXT("FindSessions PlayerOwner->GetPreferredUniqueNetId(): %d"), PlayerOwner->GetPreferredUniqueNetId());
 
-			GameSession->StartMatchmaking(PlayerOwner->GetPreferredUniqueNetId(), GameSessionName, MatchType);
+			// this chenged in 4.20 - it is not returning the same type anymore
+			FUniqueNetIdRepl playerNetId = PlayerOwner->GetPreferredUniqueNetId();
+			GameSession->StartMatchmaking(playerNetId.GetUniqueNetId(), GameSessionName, MatchType);
 			//GameSession->FindSessions(PlayerOwner->GetPreferredUniqueNetId(), GameSessionName, bFindLAN, true);
 
 			bResult = true;
@@ -2184,7 +2186,9 @@ bool UMyGameInstance::CancelMatchmaking(ULocalPlayer* PlayerOwner)
 
 			//UE_LOG(LogTemp, Verbose, TEXT("FindSessions PlayerOwner->GetPreferredUniqueNetId(): %d"), PlayerOwner->GetPreferredUniqueNetId());
 
-			GameSession->CancelMatchmaking(PlayerOwner->GetPreferredUniqueNetId(), GameSessionName);
+			// this chenged in 4.20 - it is not returning the same type anymore
+			FUniqueNetIdRepl playerNetId = PlayerOwner->GetPreferredUniqueNetId();
+			GameSession->CancelMatchmaking(playerNetId.GetUniqueNetId(), GameSessionName);
 			//GameSession->FindSessions(PlayerOwner->GetPreferredUniqueNetId(), GameSessionName, bFindLAN, true);
 
 			bResult = true;
@@ -2217,7 +2221,9 @@ bool UMyGameInstance::FindSessions(ULocalPlayer* PlayerOwner, bool bFindLAN)
 
 			//UE_LOG(LogTemp, Verbose, TEXT("FindSessions PlayerOwner->GetPreferredUniqueNetId(): %d"), PlayerOwner->GetPreferredUniqueNetId());
 
-			GameSession->FindSessions(PlayerOwner->GetPreferredUniqueNetId(), GameSessionName, bFindLAN, true);
+			// this chenged in 4.20 - it is not returning the same type anymore
+			FUniqueNetIdRepl playerNetId = PlayerOwner->GetPreferredUniqueNetId();
+			GameSession->FindSessions(playerNetId.GetUniqueNetId(), GameSessionName, bFindLAN, true);
 
 			bResult = true;
 		}
@@ -2337,7 +2343,9 @@ void UMyGameInstance::SetIsOnline(bool bInIsOnline)
 		{
 			ULocalPlayer* LocalPlayer = LocalPlayers[i];
 
-			TSharedPtr<const FUniqueNetId> PlayerId = LocalPlayer->GetPreferredUniqueNetId();
+			// this changed in 4.20  - not returning the same type anymore
+			FUniqueNetIdRepl playerNetId = LocalPlayer->GetPreferredUniqueNetId();
+			TSharedPtr<const FUniqueNetId> PlayerId = playerNetId.GetUniqueNetId();
 			if (PlayerId.IsValid())
 			{
 				OnlineSub->SetUsingMultiplayerFeatures(*PlayerId, bIsOnline);
@@ -2389,7 +2397,11 @@ bool UMyGameInstance::JoinSession(ULocalPlayer* LocalPlayer, int32 SessionIndexI
 		AddNetworkFailureHandlers();
 
 		OnJoinSessionCompleteDelegateHandle = GameSession->OnJoinSessionComplete().AddUObject(this, &UMyGameInstance::OnJoinSessionComplete); //.AddUObject(this, &UMyGameInstance::OnJoinSessionComplete);
-		if (GameSession->JoinSession(LocalPlayer->GetPreferredUniqueNetId(), GameSessionName, SessionIndexInSearchResults))
+
+		// this chenged in 4.20 - it is not returning the same type anymore
+		FUniqueNetIdRepl playerNetId = LocalPlayer->GetPreferredUniqueNetId();
+
+		if (GameSession->JoinSession(playerNetId.GetUniqueNetId(), GameSessionName, SessionIndexInSearchResults))
 		{
 			// If any error occured in the above, pending state would be set
 			//if ((PendingState == CurrentState) || (PendingState == MyGameInstanceState::None))
@@ -2417,7 +2429,11 @@ bool UMyGameInstance::JoinSession(ULocalPlayer* LocalPlayer, const FOnlineSessio
 		AddNetworkFailureHandlers();
 
 		OnJoinSessionCompleteDelegateHandle = GameSession->OnJoinSessionComplete().AddUObject(this, &UMyGameInstance::OnJoinSessionComplete);
-		if (GameSession->JoinSession(LocalPlayer->GetPreferredUniqueNetId(), GameSessionName, SearchResult))
+
+		// this chenged in 4.20 - it is not returning the same type anymore
+		FUniqueNetIdRepl playerNetId = LocalPlayer->GetPreferredUniqueNetId();
+
+		if (GameSession->JoinSession(playerNetId.GetUniqueNetId(), GameSessionName, SearchResult))
 		{
 			// If any error occured in the above, pending state would be set
 			if ((PendingState == CurrentState) || (PendingState == MyGameInstanceState::None))

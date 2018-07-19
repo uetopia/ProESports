@@ -535,7 +535,9 @@ void AMyPlayerController::InviteUserToParty(const FString& PartyKeyId, const FSt
 	PartyData.SetAttribute("key_id", PartyKeyId);
 
 	// Tell the OSS to send the invite 
-	OnlineSub->GetPartyInterface()->SendInvitation(*UserId, PartyId, PartyInviteRecipient, PartyData, OnSendPartyInvitationComplete);
+	// this changed in 4.20
+	//OnlineSub->GetPartyInterface()->SendInvitation(*UserId, PartyId, PartyInviteRecipient, PartyData, OnSendPartyInvitationComplete);
+	OnlineSub->GetPartyInterface()->SendInvitation(*UserId, PartyId, PartyInviteRecipient, OnSendPartyInvitationComplete);
 	
 }
 
@@ -559,25 +561,34 @@ void AMyPlayerController::OnPartyInviteReceivedComplete(const FUniqueNetId& Loca
 		IOnlinePartyJoinInfo& PartyInfo = *PendingInvitesArray[Index];
 
 		FMyPartyInvitation ThisPartyInvitation;
-		FOnlinePartyData ThisPartyData;
-		ThisPartyData = PartyInfo.GetClientData();
+		//FOnlinePartyData ThisPartyData;
 
-		FVariantData partyKeyId;
-		FVariantData partyTitle ;
-		FVariantData senderUserKeyId;
-		FVariantData senderUserTitle;
-		FVariantData recipientUserKeyId;
+		// This was removed in 4.20
+		//ThisPartyData = PartyInfo.GetClientData();
+		
+
+		//FVariantData partyKeyId;
+		//FVariantData partyTitle ;
+		//FVariantData senderUserKeyId;
+		//FVariantData senderUserTitle;
+		//FVariantData recipientUserKeyId;
 
 
-		ThisPartyData.GetAttribute("partyTitle", partyTitle);
-		ThisPartyData.GetAttribute("senderUserKeyId", senderUserKeyId);
-		ThisPartyData.GetAttribute("senderUserTitle", senderUserTitle);
-		ThisPartyData.GetAttribute("partyKeyId", partyKeyId);
+		//ThisPartyData.GetAttribute("partyTitle", partyTitle);
+		//ThisPartyData.GetAttribute("senderUserKeyId", senderUserKeyId);
+		//ThisPartyData.GetAttribute("senderUserTitle", senderUserTitle);
+		//ThisPartyData.GetAttribute("partyKeyId", partyKeyId);
 
-		partyTitle.GetValue(ThisPartyInvitation.partyTitle);
-		senderUserKeyId.GetValue(ThisPartyInvitation.senderUserKeyId);
-		senderUserTitle.GetValue(ThisPartyInvitation.senderUserTitle);
-		partyKeyId.GetValue(ThisPartyInvitation.partyKeyId);
+		//partyTitle.GetValue(ThisPartyInvitation.partyTitle);
+		//senderUserKeyId.GetValue(ThisPartyInvitation.senderUserKeyId);
+		//senderUserTitle.GetValue(ThisPartyInvitation.senderUserTitle);
+		//partyKeyId.GetValue(ThisPartyInvitation.partyKeyId);
+
+		ThisPartyInvitation.partyKeyId = PartyId.ToString();
+		// Is there some other way to get the party title now?
+		ThisPartyInvitation.partyTitle = PartyInfo.GetSourceDisplayName();
+		ThisPartyInvitation.senderUserKeyId = PartyInfo.GetSourceUserId()->ToString();
+		ThisPartyInvitation.senderUserTitle = PartyInfo.GetSourceDisplayName();
 
 		MyCachedPartyInvitations.Add(ThisPartyInvitation);
 

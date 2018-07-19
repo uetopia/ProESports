@@ -306,7 +306,10 @@ void AMyGameSession::OnMatchmakingComplete(FName SessionNameIncoming, bool bWasS
 			ULocalPlayer* const Player = gameInstance->GetFirstGamePlayer();
 			int32 sessionIndexinSearchResults = 0;
 
-			JoinSession(Player->GetPreferredUniqueNetId(), SessionNameIncoming, sessionIndexinSearchResults);
+			// this changed in 4.20  - not returning the same type anymore
+			//JoinSession(Player->GetPreferredUniqueNetId(), SessionNameIncoming, sessionIndexinSearchResults);
+			FUniqueNetIdRepl playerNetId = Player->GetPreferredUniqueNetId();
+			JoinSession(playerNetId.GetUniqueNetId(), SessionNameIncoming, sessionIndexinSearchResults);
 			gameInstance->TravelToSession(0, SessionNameIncoming);
 
 		}

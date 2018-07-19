@@ -3,6 +3,9 @@
 #pragma once
 
 #include "GameFramework/PlayerController.h"
+#include "Http.h"
+#include "Json.h"
+#include "JsonUtilities.h"
 #include "Online.h"
 #include "OnlineFriendsInterface.h"
 #include "OnlineTournamentsInterface.h"
@@ -473,6 +476,9 @@ public:
 		bool IAmCaptain;
 
 	ILoginFlowManager::FOnPopupDismissed OnPopupDismissedUEtopiaDelegate;
+
+	
+
 private:
 
 	// 4.16 login flow stuff - moving to loginwidget

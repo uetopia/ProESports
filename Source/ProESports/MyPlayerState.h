@@ -3,6 +3,10 @@
 #pragma once
 
 #include "GameFramework/PlayerState.h"
+#include "Http.h"
+#include "Json.h"
+#include "JsonUtilities.h"
+#include "Online.h"
 #include "Engine.h"
 #include "MyPlayerState.generated.h"
 
@@ -131,6 +135,40 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly)
 		TArray<FString> ServerPortalKeyIdsAuthorized;
 
+	// Custom texture url strings.
+	// THis is set via getServerInfo, and normally stored in gamestate or game instance
+	// the duplicate here is because the player needs to have a hard notification that this changes.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, ReplicatedUsing = OnRep_OnCustomTextureChange, Category = "UETOPIA")
+		TArray<FString> customTextures;
 
+	UFUNCTION(Client, Reliable)
+		virtual void OnRep_OnCustomTextureChange();
+
+	UFUNCTION(Client, Reliable)
+		virtual void LoadTexturesOntoActors();
+
+	TArray<UTexture2D*> LoadedTextures;
+
+	/**
+	* Delegate called when a Http request completes for reading a cloud file
+	*/
+	void ReadCustomTexture_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded);
+
+	/**
+	* Save a file from a given user to disk
+	*
+	* @param FileName name of file being saved
+	* @param Data data to write to disk
+	*/
+	void SaveCloudFileToDisk(const FString& Filename, const TArray<uint8>& Data);
+
+	/**
+	* Converts filename into a local file cache path
+	*
+	* @param FileName name of file being loaded
+	*
+	* @return unreal file path to be used by file manager
+	*/
+	FString GetLocalFilePath(const FString& FileName);
 
 };

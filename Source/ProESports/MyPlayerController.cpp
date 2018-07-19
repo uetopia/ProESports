@@ -6,6 +6,7 @@
 #include "OnlineSubsystemUtils.h"
 #include "ILoginFlowModule.h"
 //#include "OnlinePartyUEtopia.h"
+#include "Net/UnrealNetwork.h"
 #include "MyPlayerState.h"
 
 
@@ -100,6 +101,17 @@ AMyPlayerController::AMyPlayerController()
 void AMyPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Only run this on the server
+	// this is not working either.  It only runs once, on lobby level.
+	/*
+	if (IsRunningDedicatedServer())
+	{
+		UMyGameInstance* TheGameInstance = Cast<UMyGameInstance>(GetWorld()->GetGameInstance());
+		// Set the custom textures.  These will replicate down to the client, and the client will load them in.
+		customTextures = TheGameInstance->customTextures;
+	}
+	*/
 
 	// Only run this on client
 	if (!IsRunningDedicatedServer())
@@ -1048,3 +1060,13 @@ void AMyPlayerController::HandleUserLoginComplete(int32 LocalUserNum, bool bWasS
 	}
 }
 
+
+/*
+void AMyPlayerController::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	// Replicates to this player only
+	DOREPLIFETIME(AMyPlayerController, customTextures);
+}
+*/

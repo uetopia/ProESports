@@ -448,6 +448,19 @@ void UMyGameInstance::GetMatchInfoComplete(FHttpRequestPtr HttpRequest, FHttpRes
 
 				UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetMatchInfo] MatchTitle: %s"), *MatchTitle);
 
+				// Loop over the sponsors and add the URLs to the native TArray
+				// This super simple example is just for demonstration purposes.
+				// The "sponsors" field is an array of whatever the group has entered into the group game custom texture field.
+				// You could request that sponsors return a json file instead of just a link to a png, where they could specify other things to use in game
+				// Promotional messages, additional textures, etc.  
+				// If you did use a custom json file instead, you'd probably want to do some additional work here, setting values in game state perhaps?
+				
+				for (int32 b = 0; b < MatchInfo.sponsors.Num(); b++) {
+					UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetMatchInfoComplete] sponsor_texture: %s"), *MatchInfo.sponsors[b]);
+					customTextures.Add(MatchInfo.sponsors[b]);
+				}
+
+
 			}
 			else
 			{
@@ -567,6 +580,11 @@ bool UMyGameInstance::ActivatePlayer(class AMyPlayerController* NewPlayerControl
 	APlayerState* thisPlayerState = NewPlayerController->PlayerState;
 	AMyPlayerState* playerS = Cast<AMyPlayerState>(thisPlayerState);
 	playerS->playerKeyId = playerKeyId;
+
+	// Start the custom texture loading asap.
+	// Can't actually do this here because we are still in the lobby level and will travel to map level soon.
+	// trying to do it on player state instead
+	playerS->customTextures = customTextures;
 
 	if (UEtopiaMode == "competitive") {
 		UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] AuthorizePlayer - Mode set to competitive"));

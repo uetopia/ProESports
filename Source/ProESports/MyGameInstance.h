@@ -143,6 +143,8 @@ struct FMyMatchInfo {
 		int32 gameModeKeyId;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
 		FString gameModeTitle;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
+		TArray<FString> sponsors;
 };
 
 USTRUCT(BlueprintType)
@@ -587,6 +589,11 @@ private:
 
 	/** Variables to control the purchase of cubes */
 	int32 CubeStoreCost;
+
+public:
+	// Custom texture url strings.
+	// This is populated from the get match info complete function, and reads tournament sponsor textures as set on the backend.
+	TArray<FString> customTextures;
 
 protected:
 	/** Delegate for creating a new session */

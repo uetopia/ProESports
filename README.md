@@ -15,4 +15,5 @@ https://forums.unrealengine.com/?code=04270376a53b4a26a3e26f0d0d11887a&state=htt
 https://docs.google.com/document/d/1AmwkHQz0z8n-b0eCrxIJRFJF4D8ST29mRBbjSg84h3k/edit
 
 # Known Issues
-none
+The 4.20 codebase is currently broken.  Changes to FUniqueNetIdRepl has caused an issue with logging in to the dedicated
+server.  We are waiting on Epic to address this issue.

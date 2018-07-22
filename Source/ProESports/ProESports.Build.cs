@@ -19,5 +19,7 @@ public class ProESports : ModuleRules
                 "SlateCore" });
 
         PrivateDependencyModuleNames.AddRange(new string[] { "LoginFlow" });
+
+        DynamicallyLoadedModuleNames.Add("OnlineSubsystemUEtopia");
     }
 }

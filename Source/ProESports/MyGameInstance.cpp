@@ -1006,7 +1006,8 @@ void UMyGameInstance::ActivateMatchPlayerRequestComplete(FHttpRequestPtr HttpReq
 									playerS->TeamId = JsonParsed->GetNumberField("team_id");
 									UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [ActivateMatchPlayerRequestComplete] - playerS->TeamId %d"), playerS->TeamId);
 
-									playerS->PlayerName = MatchInfo.players[b].userTitle;
+									playerS->SetPlayerName(MatchInfo.players[b].userTitle);
+									//playerS->PlayerName = MatchInfo.players[b].userTitle;
 									playerS->playerTitle = MatchInfo.players[b].userTitle;
 								}
 							}

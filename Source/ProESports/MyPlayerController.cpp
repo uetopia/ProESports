@@ -283,19 +283,19 @@ void AMyPlayerController::OnReadFriendsComplete(int32 LocalPlayer, bool bWasSucc
 			{
 				const FOnlineFriend& Friend = *Friends[Index];
 				const FOnlineUserPresence& Presence = Friend.GetPresence();
-				UE_LOG(LogOnline, Log, TEXT("\t%s has unique id (%s)"), *Friend.GetDisplayName(), *Friend.GetUserId()->ToDebugString());
-				UE_LOG(LogOnline, Log, TEXT("\t\t Invite status (%s)"), EInviteStatus::ToString(Friend.GetInviteStatus()));
-				UE_LOG(LogOnline, Log, TEXT("\t\t Presence: %s"), *Presence.Status.StatusStr);
-				UE_LOG(LogOnline, Log, TEXT("\t\t State: %s"), EOnlinePresenceState::ToString(Presence.Status.State));
-				UE_LOG(LogOnline, Log, TEXT("\t\t bIsOnline (%s)"), Presence.bIsOnline ? TEXT("true") : TEXT("false"));
-				UE_LOG(LogOnline, Log, TEXT("\t\t bIsPlaying (%s)"), Presence.bIsPlaying ? TEXT("true") : TEXT("false"));
-				UE_LOG(LogOnline, Log, TEXT("\t\t bIsPlayingThisGame (%s)"), Presence.bIsPlayingThisGame ? TEXT("true") : TEXT("false"));
-				UE_LOG(LogOnline, Log, TEXT("\t\t bIsJoinable (%s)"), Presence.bIsJoinable ? TEXT("true") : TEXT("false"));
-				UE_LOG(LogOnline, Log, TEXT("\t\t bHasVoiceSupport (%s)"), Presence.bHasVoiceSupport ? TEXT("true") : TEXT("false"));
+				//UE_LOG(LogOnline, Log, TEXT("\t%s has unique id (%s)"), *Friend.GetDisplayName(), *Friend.GetUserId()->ToString());
+				//UE_LOG(LogOnline, Log, TEXT("\t\t Invite status (%s)"), EInviteStatus::ToString(Friend.GetInviteStatus()));
+				//UE_LOG(LogOnline, Log, TEXT("\t\t Presence: %s"), *Presence.Status.StatusStr);
+				//UE_LOG(LogOnline, Log, TEXT("\t\t State: %s"), EOnlinePresenceState::ToString(Presence.Status.State));
+				//UE_LOG(LogOnline, Log, TEXT("\t\t bIsOnline (%s)"), Presence.bIsOnline ? TEXT("true") : TEXT("false"));
+				//UE_LOG(LogOnline, Log, TEXT("\t\t bIsPlaying (%s)"), Presence.bIsPlaying ? TEXT("true") : TEXT("false"));
+				//UE_LOG(LogOnline, Log, TEXT("\t\t bIsPlayingThisGame (%s)"), Presence.bIsPlayingThisGame ? TEXT("true") : TEXT("false"));
+				//UE_LOG(LogOnline, Log, TEXT("\t\t bIsJoinable (%s)"), Presence.bIsJoinable ? TEXT("true") : TEXT("false"));
+				//UE_LOG(LogOnline, Log, TEXT("\t\t bHasVoiceSupport (%s)"), Presence.bHasVoiceSupport ? TEXT("true") : TEXT("false"));
 
 				FMyFriend ThisFriend;
 				ThisFriend.playerTitle = Friend.GetDisplayName();
-				ThisFriend.playerKeyId = Friend.GetUserId()->ToDebugString();
+				ThisFriend.playerKeyId = Friend.GetUserId()->ToString();
 				ThisFriend.bIsOnline = Presence.bIsOnline;
 				ThisFriend.bIsPlayingThisGame = Presence.bIsPlayingThisGame;
 
@@ -349,12 +349,12 @@ void AMyPlayerController::OnReadRecentPlayersComplete(const FUniqueNetId& UserId
 			{
 				const FOnlineRecentPlayer& RecentPlayer = *RecentPlayers[Index];
 
-				UE_LOG(LogOnline, Log, TEXT("\t%s has unique id (%s)"), *RecentPlayer.GetDisplayName(), *RecentPlayer.GetUserId()->ToDebugString());
+				//UE_LOG(LogOnline, Log, TEXT("\t%s has unique id (%s)"), *RecentPlayer.GetDisplayName(), *RecentPlayer.GetUserId()->ToString());
 
 
 				FMyRecentPlayer ThisRecentPlayer;
 				ThisRecentPlayer.playerTitle = RecentPlayer.GetDisplayName();
-				ThisRecentPlayer.playerKeyId = RecentPlayer.GetUserId()->ToDebugString();
+				ThisRecentPlayer.playerKeyId = RecentPlayer.GetUserId()->ToString();
 
 				MyCachedRecentPlayers.MyRecentPlayers.Add(ThisRecentPlayer);
 

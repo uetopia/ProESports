@@ -306,6 +306,9 @@ void AMyGameSession::OnMatchmakingComplete(FName SessionNameIncoming, bool bWasS
 			ULocalPlayer* const Player = gameInstance->GetFirstGamePlayer();
 			int32 sessionIndexinSearchResults = 0;
 
+			// 4.20 broke this.  
+			// Attempting to populate the session search results first, because Index 0 does not exist, even though we already set it up.
+			//SearchSettings->SearchResults.Add(Sessions->Get)
 			// this changed in 4.20  - not returning the same type anymore
 			//JoinSession(Player->GetPreferredUniqueNetId(), SessionNameIncoming, sessionIndexinSearchResults);
 			FUniqueNetIdRepl playerNetId = Player->GetPreferredUniqueNetId();
@@ -582,18 +585,19 @@ void AMyGameSession::RegisterPlayer(APlayerController* NewPlayer, const TSharedP
 	{
 		// Set the player's ID.
 		check(NewPlayer->PlayerState);
+
 		NewPlayer->PlayerState->PlayerId = GetNextPlayerID();
 		NewPlayer->PlayerState->SetUniqueId(UniqueId);
 		NewPlayer->PlayerState->RegisterPlayerWithSession(bWasFromInvite);
 
-		int32 playerId = NewPlayer->PlayerState->PlayerId;
+		//int32 playerId = NewPlayer->PlayerState->PlayerId;
 		//FString playerUniqueId = UniqueId->ToString(); // assertion fail
 
-		UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [AMyGameSession] RegisterPlayer playerId: %d"), playerId);
+		//UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [AMyGameSession] RegisterPlayer playerId: %d"), playerId);
 		//UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [AMyGameSession] RegisterPlayer UniqueId: %s"), *UniqueId->ToString()); //assertionFail
 		//UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [AMyGameSession] RegisterPlayer playerUniqueId: %s"), *playerUniqueId);  // assertion fail
 
-		UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [AMyGameSession] RegisterPlayer NewPlayer->PlayerState->PlayerName: %s"), *NewPlayer->PlayerState->PlayerName);
+		UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [AMyGameSession] RegisterPlayer NewPlayer->PlayerState->PlayerName: %s"), *NewPlayer->PlayerState->GetPlayerName());
 		//NewPlayer->PlayerState->
 
 

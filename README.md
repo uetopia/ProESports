@@ -1,9 +1,8 @@
 # PRO/eSports FOUNDATION
 Competitive multiplayer tools.
 
-4.19_OSS enhanced complete branch requires the 4.19 branch of the UEtopia plugin, and a patched version of the engine
-https://github.com/uetopia/uetopia-online-subsystem/tree/4.19_OSS_Enhanced
-https://github.com/uetopia/UnrealEngine/tree/4.19.0_UETOPIA_OSS_Enhancements
+4.20_OSS enhanced complete branch requires the 4.20 branch of the UEtopia plugin (included), and a patched version of the engine
+https://github.com/uetopia/UnrealEngine/tree/4.20.0_UETOPIA_OSS_ENHANCED - If you see the landspeeder 404, make sure you are logged in, and have authorized your github account with Epic.
 
 # Live Demo
 https://ue4topia.appspot.com/#/game/5719586641018880
@@ -15,5 +14,4 @@ https://forums.unrealengine.com/?code=04270376a53b4a26a3e26f0d0d11887a&state=htt
 https://docs.google.com/document/d/1AmwkHQz0z8n-b0eCrxIJRFJF4D8ST29mRBbjSg84h3k/edit
 
 # Known Issues
-The 4.20 codebase is currently broken.  Changes to FUniqueNetIdRepl has caused an issue with logging in to the dedicated
-server.  We are waiting on Epic to address this issue.
+None

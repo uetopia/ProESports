@@ -243,7 +243,7 @@ void AUEtopiaCompetitiveCharacter::ServerAttemptSpawnProjectile_Implementation()
 		// Spawn the actor
 		//Spawn a bomb
 		FTransform const SpawnTransform(ShootDir.Rotation(), spawnlocation);
-		AMyPlayerState* playerS = Cast<AMyPlayerState>(PlayerState);
+		AMyPlayerState* playerS = Cast<AMyPlayerState>(GetPlayerState());
 		int32 playerID = playerS->PlayerId;
 		AMyProjectile* const ProjectileActor = GetWorld()->SpawnActor<AMyProjectile>(AMyProjectile::StaticClass(), SpawnTransform);
 		UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [AUEtopiaCompetitiveCharacter] [ServerAttemptSpawnProjectile_Implementation] PlayerState->PlayerId %d "), playerS->PlayerId);

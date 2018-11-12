@@ -8,7 +8,7 @@
 #include "JsonUtilities.h"
 #include "Online.h"
 #include "OnlineFriendsInterface.h"
-#include "OnlineTournamentsInterface.h"
+#include "OnlineTournamentInterface.h"
 #include "ILoginFlowManager.h"
 #include "MyPlayerController.generated.h"
 

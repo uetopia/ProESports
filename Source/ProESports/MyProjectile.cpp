@@ -147,7 +147,7 @@ void AMyProjectile::OnHit_Implementation(UPrimitiveComponent* HitComponent, AAct
 
 		// check team?  Friendly Fire.
 
-		AMyPlayerState* playerS = Cast<AMyPlayerState>(TheCharacter->PlayerState);
+		AMyPlayerState* playerS = Cast<AMyPlayerState>(TheCharacter->GetPlayerState());
 
 		if (playerS->TeamId != ownerTeamID)
 		{

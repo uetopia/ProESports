@@ -8,45 +8,12 @@
 #include "JsonUtilities.h"
 #include "Online.h"
 #include "Engine.h"
+#include "MyTypes.h"
 #include "MyPlayerState.generated.h"
 
 /**
 *
 */
-
-USTRUCT(BlueprintType)
-struct FMyInventoryItemStat {
-
-	GENERATED_USTRUCT_BODY()
-		UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString itemStatKey;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		int32 itemStatValue;
-
-};
-
-USTRUCT(BlueprintType)
-struct FMyInventoryItem {
-
-	GENERATED_USTRUCT_BODY()
-		UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		int32 quantity;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString itemId;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString itemTitle;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		TArray<FMyInventoryItemStat> InventoryItemStats;
-
-};
-
-USTRUCT(BlueprintType)
-struct FMyInventory {
-
-	GENERATED_USTRUCT_BODY()
-		UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		TArray<FMyInventoryItem> InventoryItems;
-};
 
 //THis delegate is working.
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FTextDelegate, FText, chatSender, FText, chatMessage);
@@ -59,12 +26,18 @@ class PROESPORTS_API AMyPlayerState : public APlayerState
 {
 	GENERATED_BODY()
 
-		FMyInventory Inventory;
+	//	FMyInventory Inventory;
 
 	virtual void CopyProperties(class APlayerState* PlayerState) override;
 
 
 public:
+
+	// We need something to track when the player has successfully gone through the login and character selection process
+	// Because on respawn, we want to skip loading screens and go immediately back to the spawn room.
+	UPROPERTY(Replicated, BlueprintReadOnly)
+		bool playerLoginFlowCompleted;
+
 	// This is the function that gets called in the widget Blueprint
 	UFUNCTION(BlueprintCallable, Category = "UETOPIA", Server, Reliable, WithValidation)
 		void BroadcastChatMessage(const FText& ChatMessageIn);
@@ -95,8 +68,8 @@ public:
 		FString serverTitle;
 	// Current Inventory item count - cubes
 	// Since this demo is so simple we don't need to use the full inventory TArray.
-	UPROPERTY(Replicated, BlueprintReadOnly)
-		int32 InventoryCubes;
+	//UPROPERTY(Replicated, BlueprintReadOnly)
+	//	int32 InventoryCubes;
 
 	UPROPERTY(Replicated, BlueprintReadOnly)
 		int32 Currency;
@@ -106,6 +79,17 @@ public:
 
 	UPROPERTY(Replicated, BlueprintReadOnly)
 		FString teamTitle;
+
+	// For the match results screen we want to pass in the winning team's title
+	// And maybe more?  
+	// Issues:  We are changing maps so gameState will be lost.
+	// GameInstance is server side only.  Could do a client rpc or something
+	// For now, just sticking this into playerState which will replicate and survive map change.
+	//  This is a simplistic approach, and should be thought through a bit more 
+	// for more complex match results screens.
+	// 
+	UPROPERTY(Replicated, BlueprintReadOnly)
+		FString winningTeamTitle;
 
 	// Variables set via get game player api call
 
@@ -130,6 +114,18 @@ public:
 		FString savedAbilities;
 	UPROPERTY(BlueprintReadOnly)
 		FString savedInterface;
+	UPROPERTY(BlueprintReadOnly)
+		FString savedCraftingSlots;
+	UPROPERTY(BlueprintReadOnly)
+		FString savedRecipes; // for crafting
+	UPROPERTY(BlueprintReadOnly)
+		FString savedCharacter;
+
+	// Store character customizations so we have access to them across respawn
+	UPROPERTY(BlueprintReadOnly)
+		bool CharacterSetup;
+	UPROPERTY(BlueprintReadOnly)
+		FMyAppearance CharacterAppearance;
 
 	// Authorizations for servers go in here.  These are server Key Ids.
 	UPROPERTY(Replicated, BlueprintReadOnly)

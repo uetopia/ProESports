@@ -169,6 +169,20 @@ void AUEtopiaCompetitiveCharacter::MoveRight(float Value)
 }
 
 
+void AUEtopiaCompetitiveCharacter::ClientChangeUIState_Implementation(EConnectUIState NewState)
+{
+	UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [AUEtopiaCompetitiveCharacter] ClientChangeUIState_Implementation"));
+	//OnUIStateChange.Broadcast(NewState);
+	OnUIStateChange(NewState);
+	return;
+}
+
+void AUEtopiaCompetitiveCharacter::OnUIStateChange_Implementation(EConnectUIState UIState)
+{
+	UE_LOG(LogTemp, Log, TEXT("[UETOPIA]AUEtopiaCompetitiveCharacter::OnUIStateChange_Implementation"));
+}
+
+
 void AUEtopiaCompetitiveCharacter::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -176,6 +190,8 @@ void AUEtopiaCompetitiveCharacter::GetLifetimeReplicatedProps(TArray< FLifetimeP
 	// Replicate to everyone
 	DOREPLIFETIME(AUEtopiaCompetitiveCharacter, Health);
 	DOREPLIFETIME(AUEtopiaCompetitiveCharacter, ProjectileCount);
+	DOREPLIFETIME(AUEtopiaCompetitiveCharacter, MyAppearance);
+	
 }
 
 void AUEtopiaCompetitiveCharacter::OnStartFire()
@@ -297,4 +313,26 @@ bool AUEtopiaCompetitiveCharacter::IsAlive() const
 bool AUEtopiaCompetitiveCharacter::CanFire() const
 {
 	return IsAlive();
+}
+
+
+void AUEtopiaCompetitiveCharacter::OnRep_OnAppearanceChange()
+{
+	// This is running client side.
+	UE_LOG(LogTemp, Log, TEXT("[UETOPIA]AUEtopiaCompetitiveCharacter::OnRep_OnAppearanceChange"));
+
+	EquipAppearance();
+}
+
+void AUEtopiaCompetitiveCharacter::EquipAppearance()
+{
+	UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [AUEtopiaCompetitiveCharacter] [EquipAppearance]  "));
+
+	if (character_options.IsValidIndex(MyAppearance.mesh))
+	{
+		UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [AUEtopiaCompetitiveCharacter] [EquipAppearance] Valid Mesh Index  "));
+		GetMesh()->SetSkeletalMesh(character_options[MyAppearance.mesh].mesh);
+		
+	}
+
 }

@@ -1,6 +1,7 @@
 // Copyright 1998-2016 Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "GameFramework/Character.h"
+#include "MyTypes.h"
 #include "UEtopiaCompetitiveCharacter.generated.h"
 
 UCLASS(config = Game)
@@ -26,6 +27,24 @@ class AUEtopiaCompetitiveCharacter : public ACharacter
 
 public:
 	AUEtopiaCompetitiveCharacter();
+
+	// BP implementable functions seem to be more reliable in some cases than delegates, so we're using them here.
+	UFUNCTION(Client, Reliable)
+		void ClientChangeUIState(EConnectUIState NewState);
+	UFUNCTION(BlueprintNativeEvent)
+		void OnUIStateChange(EConnectUIState UIState);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Character)
+		TArray<FCharacterOptions> character_options;
+
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_OnAppearanceChange, Category = "UETOPIA")
+		FMyAppearance MyAppearance;
+
+	UFUNCTION()
+		void OnRep_OnAppearanceChange();
+
+	UFUNCTION(BlueprintCallable, Category = "UETOPIA")
+		void EquipAppearance();
 
 	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera)

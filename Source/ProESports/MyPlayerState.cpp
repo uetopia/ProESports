@@ -357,6 +357,8 @@ void AMyPlayerState::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & Ou
 	DOREPLIFETIME(AMyPlayerState, ServerPortalKeyIdsAuthorized);
 	DOREPLIFETIME(AMyPlayerState, TeamId);
 	DOREPLIFETIME(AMyPlayerState, customTextures);
+	DOREPLIFETIME(AMyPlayerState, playerLoginFlowCompleted);
+	DOREPLIFETIME(AMyPlayerState, winningTeamTitle);
 }
 
 /* handles copying properties when we do seamless travel */
@@ -374,6 +376,11 @@ void AMyPlayerState::CopyProperties(class APlayerState* PlayerState)
 		MyPlayerState->TeamId = TeamId;
 		MyPlayerState->playerTitle = playerTitle;
 		MyPlayerState->customTextures = customTextures;
+		MyPlayerState->playerLoginFlowCompleted = playerLoginFlowCompleted;
+		MyPlayerState->CharacterSetup = CharacterSetup;
+		MyPlayerState->CharacterAppearance = CharacterAppearance;
+		MyPlayerState->winningTeamTitle = winningTeamTitle;
+
 	}
 
 }

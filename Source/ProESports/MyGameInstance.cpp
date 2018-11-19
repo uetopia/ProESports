@@ -83,6 +83,13 @@ UMyGameInstance::UMyGameInstance(const FObjectInitializer& ObjectInitializer)
 		GGameIni
 		);
 
+	GConfig->GetBool(
+		TEXT("UEtopia.Client"),
+		TEXT("CharactersEnabled"),
+		UEtopiaCharactersEnabled,
+		GGameIni
+	);
+
 	bRequestBeginPlayStarted = false;
 	// I don't think we want this here.
 	//GetServerInfo();
@@ -385,15 +392,13 @@ void UMyGameInstance::GetMatchInfoComplete(FHttpRequestPtr HttpRequest, FHttpRes
 					admissionFee = JsonParsed->GetIntegerField("admissionFee");
 				}
 
-
+			
 				// Put all of our player information in our MatchInfo TArray
 
 				FJsonObjectConverter::JsonObjectStringToUStruct<FMyMatchInfo>(
 					JsonRaw,
 					&MatchInfo,
 					0, 0);
-
-				
 
 				// Put replicated data in game state
 				AGameState* gameState = Cast<AGameState>(GetWorld()->GetGameState());
@@ -599,6 +604,16 @@ bool UMyGameInstance::ActivatePlayer(class AMyPlayerController* NewPlayerControl
 				ActivePlayerIndex = b;
 
 				MatchInfo.players[b].PlayerController = NewPlayerController;
+				if (UEtopiaCharactersEnabled)
+				{
+					UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] AuthorizePlayer - UEtopiaCharactersEnabled"));
+					MatchInfo.players[b].characterCustomized = false;
+				}
+				else
+				{
+					UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] AuthorizePlayer - UEtopiaCharacters NOT Enabled "));
+					MatchInfo.players[b].characterCustomized = true;
+				}
 
 				// TODO set team
 			}
@@ -660,7 +675,7 @@ bool UMyGameInstance::ActivatePlayer(class AMyPlayerController* NewPlayerControl
 			activeplayer.roundDeaths = 0;
 			activeplayer.roundKills = 0;
 			//activeplayer.killed = nullptr;
-			activeplayer.Rank = 1600;
+			activeplayer.rank = 1600;
 			activeplayer.currencyCurrent = 10;
 			activeplayer.gamePlayerKeyId = nullptr;
 			activeplayer.UniqueId = UniqueId;
@@ -791,7 +806,7 @@ void UMyGameInstance::ActivateRequestComplete(FHttpRequestPtr HttpRequest, FHttp
 							PlayerRecord.ActivePlayers[b].playerTitle = JsonParsed->GetStringField("player_name");
 							PlayerRecord.ActivePlayers[b].playerKeyId = JsonParsed->GetStringField("user_key_id");
 							PlayerRecord.ActivePlayers[b].currencyCurrent = JsonParsed->GetIntegerField("player_currency");
-							PlayerRecord.ActivePlayers[b].Rank = JsonParsed->GetIntegerField("player_rank");
+							PlayerRecord.ActivePlayers[b].rank = JsonParsed->GetIntegerField("player_rank");
 							PlayerRecord.ActivePlayers[b].gamePlayerKeyId = JsonParsed->GetStringField("game_player_key_id");
 
 							// We need to go through the playercontrollerIterator to hunt for the playerKeyId
@@ -999,6 +1014,9 @@ void UMyGameInstance::ActivateMatchPlayerRequestComplete(FHttpRequestPtr HttpReq
 									//UE_LOG(LogTemp, Log, TEXT("playerS->PlayerId: %d"), thisPlayerState->PlayerId);
 									MatchInfo.players[b].playerID = thisPlayerState->PlayerId;
 
+									// Also set the gamePlayerKeyId
+									MatchInfo.players[b].gamePlayerKeyId = JsonParsed->GetStringField("game_player_key_id");
+
 									// Also set the team!
 									//ACharacter* thisCharacter = pc->GetCharacter();
 									//AUEtopiaCompetitiveCharacter* compCharacter = Cast<AUEtopiaCompetitiveCharacter>(thisCharacter);
@@ -1009,6 +1027,18 @@ void UMyGameInstance::ActivateMatchPlayerRequestComplete(FHttpRequestPtr HttpReq
 									playerS->SetPlayerName(MatchInfo.players[b].userTitle);
 									//playerS->PlayerName = MatchInfo.players[b].userTitle;
 									playerS->playerTitle = MatchInfo.players[b].userTitle;
+
+									// Also set the character customization bool we got from match info
+									playerS->CharacterSetup = MatchInfo.players[b].characterCustomized;
+
+									// Since we have a match, we also want to get all of the game player data associated with this player.
+									// For matchmaker, we don't really need the delay.  Just setting it to one sec.
+
+									// Bind the timer delegate
+									MatchInfo.players[b].GetPlayerInfoTimerDel.BindUFunction(this, FName("GetGamePlayer"), JsonParsed->GetStringField("player_userid"), true);
+									// Set the timer
+									GetWorld()->GetTimerManager().SetTimer(MatchInfo.players[b].GetPlayerInfoDelayHandle, MatchInfo.players[b].GetPlayerInfoTimerDel, 1.f, false);
+
 								}
 							}
 
@@ -1047,60 +1077,19 @@ void UMyGameInstance::ActivateMatchPlayerRequestComplete(FHttpRequestPtr HttpReq
 
 					}
 
-
-					// ALso set this player state playerName
-
-					for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator)
-					{
-						UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [ActivateMatchPlayerRequestComplete] - Looking for player to set name"));
-						pc = Iterator->Get();
-
-						/*
-						AMyPlayerController* thisPlayerController = Cast<AMyPlayerController>(pc);
-
-						if (thisPlayerController) {
-						UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [ActivateRequestComplete] - Cast Controller success"));
-
-						if (matchStarted) {
-						UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [ActivateRequestComplete] - Match in progress - setting spectator"));
-						thisPlayerController->PlayerState->bIsSpectator = true;
-						thisPlayerController->ChangeState(NAME_Spectating);
-						thisPlayerController->ClientGotoState(NAME_Spectating);
-						}
-
-
-						playerstateID = thisPlayerController->PlayerState->PlayerId;
-						if (PlayerRecord[activePlayerIndex].playerID == playerstateID)
-						{
-						UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [ActivateRequestComplete] - playerID match - setting name"));
-						thisPlayerController->PlayerState->SetPlayerName(JsonParsed->GetStringField("player_name"));
-						}
-						*/
-
-
-					}
-
-
+					// We're using getGamePlayer now, so we don't want to start the match until that process is complete - moving this
+					/*
 					if (MatchStarted == false)
 					{
 						if (activeJoinedPlayers >= totalExpectedPlayers)
 						{
 							UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [ActivateMatchPlayerRequestComplete] - activeJoinedPlayers >= totalExpectedPlayers - starting timer"));
-							//matchStarted = true;
-
 							// do it after a timer
 							GetWorld()->GetTimerManager().SetTimer(AttemptStartMatchTimerHandle, this, &UMyGameInstance::AttemptStartMatch, 10.0f, false);
-							// travel to the third person map
-							//FString UrlString = TEXT("/Game/ThirdPersonCPP/Maps/ThirdPersonExampleMap?listen");
-							//GetWorld()->GetAuthGameMode()->bUseSeamlessTravel = true;
-							//GetWorld()->ServerTravel(UrlString);
 						}
 					}
+					*/
 					
-
-
-
-
 				}
 				else
 				{
@@ -1166,26 +1155,59 @@ bool UMyGameInstance::GetGamePlayer(FString playerKeyId, bool bAttemptLock)
 {
 	UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] GetGamePlayer"));
 
-	FMyActivePlayer* ActivePlayer = getPlayerByPlayerKey(playerKeyId);
-
-	if (ActivePlayer)
+	// Get the Access token via our player array
+	// TODO - unify match and active players so we don't need this.
+	if (UEtopiaMode == "competitive")
 	{
-		FString access_token = ActivePlayer->PlayerController->CurrentAccessTokenFromOSS;
+		UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetGamePlayer] - Mode set to competitive"));
+		FMyMatchPlayer* ActiveMatchPlayer = getMatchPlayerByPlayerKey(playerKeyId);
 
-		FString nonceString = "10951350917635";
-		FString encryption = "off";  // Allowing unencrypted on sandbox for now.  
-		FString OutputString = "nonce=" + nonceString + "&encryption=" + encryption;
+		if (ActiveMatchPlayer)
+		{
+			FString access_token = ActiveMatchPlayer->PlayerController->CurrentAccessTokenFromOSS;
 
-		if (bAttemptLock) {
-			OutputString = OutputString + "&lock=True";
+			FString nonceString = "10951350917635";
+			FString encryption = "off";  // Allowing unencrypted on sandbox for now.  
+			FString OutputString = "nonce=" + nonceString + "&encryption=" + encryption;
+
+			if (bAttemptLock) {
+				OutputString = OutputString + "&lock=True";
+			}
+
+			FString APIURI = "/api/v1/game/player/" + ActiveMatchPlayer->gamePlayerKeyId;
+
+			bool requestSuccess = PerformHttpRequest(&UMyGameInstance::GetGamePlayerRequestComplete, APIURI, OutputString, access_token);
+
+			return requestSuccess;
 		}
-
-		FString APIURI = "/api/v1/game/player/" + playerKeyId;
-
-		bool requestSuccess = PerformHttpRequest(&UMyGameInstance::GetGamePlayerRequestComplete, APIURI, OutputString, access_token);
-
-		return requestSuccess;
 	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetGamePlayer] - Mode set to continuous"));
+		FMyActivePlayer* ActivePlayer = getPlayerByPlayerKey(playerKeyId);
+
+		if (ActivePlayer)
+		{
+			FString access_token = ActivePlayer->PlayerController->CurrentAccessTokenFromOSS;
+
+			FString nonceString = "10951350917635";
+			FString encryption = "off";  // Allowing unencrypted on sandbox for now.  
+			FString OutputString = "nonce=" + nonceString + "&encryption=" + encryption;
+
+			if (bAttemptLock) {
+				OutputString = OutputString + "&lock=True";
+			}
+
+			FString APIURI = "/api/v1/game/player/" + ActivePlayer->gamePlayerKeyId;
+
+			bool requestSuccess = PerformHttpRequest(&UMyGameInstance::GetGamePlayerRequestComplete, APIURI, OutputString, access_token);
+
+			return requestSuccess;
+		}
+	}
+
+
+	
 	return true;
 }
 
@@ -1219,63 +1241,261 @@ void UMyGameInstance::GetGamePlayerRequestComplete(FHttpRequestPtr HttpRequest, 
 				APlayerController* pc = NULL;
 				FString playerKeyId = JsonParsed->GetStringField("userKeyId");
 
-				FMyActivePlayer* activePlayer = getPlayerByPlayerKey(JsonParsed->GetStringField("userKeyId"));
-				for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator)
+				// Keep track of the playerState and playerCharacter that is associated with this player
+				APlayerState* thisPlayerState;
+				AMyPlayerState* playerS = nullptr;
+				AUEtopiaCompetitiveCharacter* playerChar = nullptr;
+				AMyPlayerController* PlayerController = nullptr;
+
+				// For very simple match based games, gamePlayer data is not required.
+				// But for more advanced match games, with persistent user data, the getGamePlayer call is required.
+				// So we'll need to distinguish here if we are running in competitive or continuous mode.
+				// TODO - revisit this.  Merging "ActivePlayers" and "MatchPlayers" into a single array seems like a possible solution.
+
+				if (UEtopiaMode == "competitive")
 				{
-					//UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetGamePlayerRequestComplete] - Looking for player Controller"));
-					pc = Iterator->Get();
-					APlayerState* thisPlayerState = pc->PlayerState;
-					AMyPlayerState* playerS = Cast<AMyPlayerState>(thisPlayerState);
+					UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetGamePlayerRequestComplete] - Mode set to competitive"));
 
-					FString playerstateplayerKeyId = playerS->playerKeyId;
-					//UE_LOG(LogTemp, Log, TEXT("playerstateplayerKeyId: %s"), *playerstateplayerKeyId);
-					FString playerArrayplayerKeyId = activePlayer->playerKeyId;
-					//UE_LOG(LogTemp, Log, TEXT("playerArrayplayerKeyId: %s"), *playerArrayplayerKeyId);
-
-					if (playerstateplayerKeyId == playerArrayplayerKeyId)
+					FMyMatchPlayer* activeMatchPlayer = getMatchPlayerByPlayerKey(JsonParsed->GetStringField("userKeyId"));
+					if (activeMatchPlayer)
 					{
-						//UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetGamePlayerRequestComplete] - playerKeyId match - Setting Game player state"));
-						double scoreTemp;
-						FString titleTemp = "None";
-						JsonParsed->TryGetNumberField("score", scoreTemp);
-						playerS->Score = scoreTemp;
-						JsonParsed->TryGetNumberField("coordLocationX", playerS->savedCoordLocationX);
-						JsonParsed->TryGetNumberField("coordLocationY", playerS->savedCoordLocationY);
-						JsonParsed->TryGetNumberField("coordLocationZ", playerS->savedCoordLocationZ);
-						JsonParsed->TryGetStringField("zoneName", playerS->savedZoneName);
-						JsonParsed->TryGetStringField("zoneKey", playerS->savedZoneKey);
-						JsonParsed->TryGetStringField("inventory", playerS->savedInventory);
-						JsonParsed->TryGetStringField("equipment", playerS->savedEquipment);
-						JsonParsed->TryGetStringField("abilities", playerS->savedAbilities);
-						JsonParsed->TryGetStringField("interface", playerS->savedInterface);
-						JsonParsed->TryGetStringField("userTitle", titleTemp);
-						playerS->playerTitle = titleTemp;
-						playerS->serverTitle = ServerTitle;
-						//UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetGamePlayerRequestComplete] playerS->playerTitle: %s"), *playerS->playerTitle);
-						//UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetGamePlayerRequestComplete] playerS->ServerTitle: %s"), *playerS->serverTitle);
+						UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetGamePlayerRequestComplete] - Found activeMatchPlayer"));
 
-						// TODO move player to the indicated position.
-
-						// Deal with our inventory item Cube Count.
-						// First try to parse the inventory as json.
-						// If it fails or does not make sense, set it to our starting Cube Count value.
-						FString InventoryJsonRaw = playerS->savedInventory;
-						TSharedPtr<FJsonObject> InventoryJsonParsed;
-						TSharedRef<TJsonReader<TCHAR>> InventoryJsonReader = TJsonReaderFactory<TCHAR>::Create(InventoryJsonRaw);
-						if (FJsonSerializer::Deserialize(InventoryJsonReader, InventoryJsonParsed))
+						PlayerController = activeMatchPlayer->PlayerController;
+						if (PlayerController)
 						{
-							UE_LOG(LogTemp, Log, TEXT("InventoryJsonParsed"));
-							UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetGamePlayerRequestComplete] InventoryJsonRaw: %s"), *InventoryJsonRaw);
-							InventoryJsonParsed->TryGetNumberField("Cubes", playerS->InventoryCubes);
-						}
-						else {
-							UE_LOG(LogTemp, Log, TEXT("InventoryJson Parse FAIL"));
-							// setting default cubes
-							playerS->InventoryCubes = 5;
-						}
+							UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetGamePlayerRequestComplete] - Found PlayerController"));
 
+							playerChar = Cast<AUEtopiaCompetitiveCharacter>(PlayerController->GetPawn());
+							thisPlayerState = PlayerController->PlayerState;
+							playerS = Cast<AMyPlayerState>(thisPlayerState);
+
+							JsonParsed->TryGetStringField("inventory", playerS->savedInventory);
+							JsonParsed->TryGetStringField("equipment", playerS->savedEquipment);
+							JsonParsed->TryGetStringField("abilities", playerS->savedAbilities);
+							JsonParsed->TryGetStringField("interface", playerS->savedInterface);
+							JsonParsed->TryGetStringField("crafting", playerS->savedCraftingSlots);
+							JsonParsed->TryGetStringField("recipes", playerS->savedRecipes);
+							JsonParsed->TryGetStringField("character", playerS->savedCharacter);
+						}
 					}
 				}
+
+				else
+				{
+					UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetGamePlayerRequestComplete] - Mode set to continuous"));
+
+					FMyActivePlayer* activePlayer = getPlayerByPlayerKey(JsonParsed->GetStringField("userKeyId"));
+					// TODO - we already have the playerController via activeplayer - get rid of this iterator 
+					for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator)
+					{
+						//UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetGamePlayerRequestComplete] - Looking for player Controller"));
+						pc = Iterator->Get();
+						thisPlayerState = pc->PlayerState;
+						playerS = Cast<AMyPlayerState>(thisPlayerState);
+
+						FString playerstateplayerKeyId = playerS->playerKeyId;
+						//UE_LOG(LogTemp, Log, TEXT("playerstateplayerKeyId: %s"), *playerstateplayerKeyId);
+						FString playerArrayplayerKeyId = activePlayer->playerKeyId;
+						//UE_LOG(LogTemp, Log, TEXT("playerArrayplayerKeyId: %s"), *playerArrayplayerKeyId);
+
+						if (playerstateplayerKeyId == playerArrayplayerKeyId)
+						{
+							//UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetGamePlayerRequestComplete] - playerKeyId match - Setting Game player state"));
+							PlayerController = Cast<AMyPlayerController>(pc);
+							playerChar = Cast<AUEtopiaCompetitiveCharacter>(pc->GetPawn());
+
+							//double scoreTemp;
+							//FString titleTemp = "None";
+							//JsonParsed->TryGetNumberField("score", scoreTemp);
+							//playerS->Score = scoreTemp;
+							JsonParsed->TryGetNumberField("coordLocationX", playerS->savedCoordLocationX);
+							JsonParsed->TryGetNumberField("coordLocationY", playerS->savedCoordLocationY);
+							JsonParsed->TryGetNumberField("coordLocationZ", playerS->savedCoordLocationZ);
+							JsonParsed->TryGetStringField("zoneName", playerS->savedZoneName);
+							JsonParsed->TryGetStringField("zoneKey", playerS->savedZoneKey);
+							JsonParsed->TryGetStringField("inventory", playerS->savedInventory);
+							JsonParsed->TryGetStringField("equipment", playerS->savedEquipment);
+							JsonParsed->TryGetStringField("abilities", playerS->savedAbilities);
+							JsonParsed->TryGetStringField("interface", playerS->savedInterface);
+							JsonParsed->TryGetStringField("crafting", playerS->savedCraftingSlots);
+							JsonParsed->TryGetStringField("recipes", playerS->savedRecipes);
+							JsonParsed->TryGetStringField("character", playerS->savedCharacter);
+							//JsonParsed->TryGetStringField("userTitle", titleTemp);
+							//playerS->playerTitle = titleTemp;
+							playerS->serverTitle = ServerTitle;
+							//UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetGamePlayerRequestComplete] playerS->playerTitle: %s"), *playerS->playerTitle);
+							//UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetGamePlayerRequestComplete] playerS->ServerTitle: %s"), *playerS->serverTitle);
+
+							// TODO move player to the indicated position.
+
+							// Deal with our inventory item Cube Count.
+							// First try to parse the inventory as json.
+							// If it fails or does not make sense, set it to our starting Cube Count value.
+							FString InventoryJsonRaw = playerS->savedInventory;
+							TSharedPtr<FJsonObject> InventoryJsonParsed;
+							TSharedRef<TJsonReader<TCHAR>> InventoryJsonReader = TJsonReaderFactory<TCHAR>::Create(InventoryJsonRaw);
+							if (FJsonSerializer::Deserialize(InventoryJsonReader, InventoryJsonParsed))
+							{
+								UE_LOG(LogTemp, Log, TEXT("InventoryJsonParsed"));
+								UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetGamePlayerRequestComplete] InventoryJsonRaw: %s"), *InventoryJsonRaw);
+								//InventoryJsonParsed->TryGetNumberField("Cubes", playerS->InventoryCubes);
+							}
+							else {
+								UE_LOG(LogTemp, Log, TEXT("InventoryJson Parse FAIL"));
+								// setting default cubes
+								//playerS->InventoryCubes = 5;
+							}
+
+						}
+					}
+
+				}
+
+				/////////////////////////////////////////////////////////////////////////////
+				// At this point we should have our raw json data stored in the player state
+				// Regardless of which game type (competitive/continuous) we want to parse this 
+				// data and change the replicated playerState values so they make it down to the client.
+				/////////////////////////////////////////////////////////////////////////////
+
+				// DO THIS FIRST.  Equipment and inventory will be modifying these values so they need to be set asap.
+				// Character Customization
+				bool CharacterParseSuccess = false;
+				FString CharacterJsonRaw = playerS->savedCharacter;
+				TSharedPtr<FJsonObject> CharacterJsonParsed;
+				TSharedRef<TJsonReader<TCHAR>> CharacterJsonReader = TJsonReaderFactory<TCHAR>::Create(CharacterJsonRaw);
+				//const JsonValPtrArray *CharacterJson;
+				bool CharacterSetup = false;
+
+				if (FJsonSerializer::Deserialize(CharacterJsonReader, CharacterJsonParsed))
+				{
+					UE_LOG(LogTemp, Log, TEXT("CharacterJsonParsed"));
+					//UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetGamePlayerRequestComplete] InventoryJsonRaw: %s"), *InventoryJsonRaw);
+
+					//
+					CharacterParseSuccess = CharacterJsonParsed->TryGetBoolField("Setup", CharacterSetup);
+				}
+
+				if (CharacterParseSuccess)
+				{
+					UE_LOG(LogTemp, Log, TEXT("CharacterParseSuccess"));
+
+					// check if character customization is complete.
+					// then change client UI state
+
+					if (CharacterSetup)
+					{
+						// Set up the CharacterAppearance
+						FMyAppearance tempAppearance;
+
+					
+						CharacterJsonParsed->TryGetNumberField("Mesh", tempAppearance.mesh);
+						// TODO - add any additional character options here.
+						//CharacterJsonParsed->TryGetNumberField("Texture", tempAppearance.texture);
+						//CharacterJsonParsed->TryGetNumberField("AnimBP", tempAppearance.animBP);
+
+						// TODO - if you are using attributes for your character GAS or custom, 
+						// You should build out a struct to hold all of the attributes here.
+						// Leaving this as an example:
+						/*
+						FCharacterAttributes CharAttributes;
+
+						double BaseHealth = 0.0;
+						CharacterJsonParsed->TryGetNumberField("BaseHealth", BaseHealth);
+						CharAttributes.BaseHealth = BaseHealth;
+						double Health = 0.0;
+						CharacterJsonParsed->TryGetNumberField("Health", Health);
+						CharAttributes.Health = Health;
+						
+
+						// Save them to GAS
+						playerS->SetAllAttributes(CharAttributes);
+						// Save them to the player state
+						playerS->CharacterAppearance = tempAppearance;
+						*/
+
+						// Temporarily muting this.  Some characters may not have been set up recently enough to 
+						// have the proper state.
+						// TODO uncomment this once you're sure all characters are state:customized
+						/*
+						playerS->CharacterSetup = true;
+
+						playerChar->ClientChangeUIState(EConnectUIState::Play);
+
+						// Also set the playerLoginFlowCompleted so we don't get loading screen on respawn
+						playerS->playerLoginFlowCompleted = true;
+
+						// At this point we need to update the data in our main struct.
+						// TODO integrate activeplayer and match player.  this is silly.
+						if (UEtopiaMode == "competitive")
+						{
+							UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetGamePlayerRequestComplete] - Mode set to competitive"));
+
+							FMyMatchPlayer* activeMatchPlayer = getMatchPlayerByPlayerKey(JsonParsed->GetStringField("userKeyId"));
+							if (activeMatchPlayer)
+							{
+								activeMatchPlayer->characterCustomized = true;
+							}
+						}
+						*/
+
+					}
+					else
+					{
+						// The JSON from the backend parsed successfully, but setup was false
+						// This can happen if a player creates a new character, connects to a server
+						// then disconnects before finishing the character customize step.
+						// In this case, just send them to the character customize screen.
+						playerChar->ClientChangeUIState(EConnectUIState::CharacterCustomize);
+					}
+				}
+				else
+				{
+					UE_LOG(LogTemp, Log, TEXT("CharacterParse FAIL"));
+					// This is what we expect to see on the first login of a new character
+					// Just setup any default values 
+					// and send the player UI to the character screen
+					
+					playerChar->ClientChangeUIState(EConnectUIState::CharacterCustomize);
+
+				}
+
+				// End Character JSON Section
+
+				// TODO - Add any other JSON parsing you need from the gamePlayer data
+				// Look at pro/MMO for more examples
+
+				PlayerController->PlayerDataLoaded = true;
+
+				
+
+
+				// check to see if all players have connected
+				// And if they have completed character customize
+				// It is possible that they haven't so we'll need to attempt start match timer from 
+				// SaveCharacterCustomization
+				bool allPlayersJoined = true;
+				bool allPlayersCharCustComplete = true;
+				for (int32 b = 0; b < MatchInfo.players.Num(); b++)
+				{
+					if (!MatchInfo.players[b].joined) {
+						allPlayersJoined = false;
+					}
+					if (!MatchInfo.players[b].characterCustomized) {
+						allPlayersCharCustComplete = false;
+					}
+				}
+
+				if (MatchStarted == false)
+				{
+					if (allPlayersJoined && allPlayersCharCustComplete)
+					{
+						UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [ActivateMatchPlayerRequestComplete] - allPlayersJoined && allPlayersCharCustComplete - starting timer"));
+						// do it after a timer
+						GetWorld()->GetTimerManager().SetTimer(AttemptStartMatchTimerHandle, this, &UMyGameInstance::AttemptStartMatch, 10.0f, false);
+					}
+				}
+				
 			}
 		}
 	}
@@ -1287,85 +1507,121 @@ bool UMyGameInstance::SaveGamePlayer(FString playerKeyId, bool bAttemptUnLock)
 {
 	UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] SaveGamePlayer"));
 
-	// get our player state so we can access all of the saved data
+	// Similar to getGamePlayer we need to get the player data out of our array,
+	// So we'll check to see what mode we are in first.
+	// TODO refactor this so we're only using one array?
 
 	APlayerController* pc = NULL;
 
-	FMyActivePlayer* activePlayer = getPlayerByPlayerKey(playerKeyId);
+	// Keep track of the playerState and playerCharacter that is associated with this player
+	APlayerState* thisPlayerState = nullptr;
+	AMyPlayerState* playerS = nullptr;
+	AUEtopiaCompetitiveCharacter* playerChar = nullptr;
+	AMyPlayerController* PlayerController = nullptr;
+	FString gamePlayerKeyId;
 
-	FString InventoryOutputString;
+	// And grab our scores out of the array while we're at it.
+	int32 Rank = 1600;
+	int32 Score = 0;
 
-	for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator)
+	if (UEtopiaMode == "competitive")
 	{
-		//UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetGamePlayerRequestComplete] - Looking for player Controller"));
-		pc = Iterator->Get();
-		APlayerState* thisPlayerState = pc->PlayerState;
-		AMyPlayerState* playerS = Cast<AMyPlayerState>(thisPlayerState);
+		UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [SaveGamePlayer] - Mode set to competitive"));
 
-		FString playerstateplayerKeyId = playerS->playerKeyId;
-		//UE_LOG(LogTemp, Log, TEXT("playerstateplayerKeyId: %s"), *playerstateplayerKeyId);
-		//UE_LOG(LogTemp, Log, TEXT("playerKeyId: %s"), *playerKeyId);
+		FMyMatchPlayer* activeMatchPlayer = getMatchPlayerByPlayerKey(playerKeyId);
+		if (activeMatchPlayer)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [SaveGamePlayer] - Found activeMatchPlayer"));
+			pc = activeMatchPlayer->PlayerController;
+			PlayerController = Cast<AMyPlayerController>(pc);
+			gamePlayerKeyId = activeMatchPlayer->gamePlayerKeyId;
+			Rank = activeMatchPlayer->rank;
+			Score = activeMatchPlayer->score;
+		}
 
-		if (playerstateplayerKeyId == playerKeyId) {
-			//UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetGamePlayerRequestComplete] - Found match"));
-			TSharedPtr<FJsonObject> InventoryJsonObject = MakeShareable(new FJsonObject);
-			InventoryJsonObject->SetNumberField("Cubes", playerS->InventoryCubes);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [SaveGamePlayer] - Mode set to continuous"));
 
-			TSharedRef< TJsonWriter<> > Writer = TJsonWriterFactory<>::Create(&InventoryOutputString);
-			FJsonSerializer::Serialize(InventoryJsonObject.ToSharedRef(), Writer);
-			//UE_LOG(LogTemp, Log, TEXT("[UMyGameInstance] InventoryOutputString: %s"), *InventoryOutputString);
+		FMyActivePlayer* activePlayer = getPlayerByPlayerKey(playerKeyId);
+		if (activePlayer)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetGamePlayerRequestComplete] - Found activePlayer"));
+			pc = activePlayer->PlayerController;
+			PlayerController = Cast<AMyPlayerController>(pc);
+			gamePlayerKeyId = activePlayer->gamePlayerKeyId;
+			Rank = activePlayer->rank;
+			Score = activePlayer->score;
 		}
 	}
 
-	FString nonceString = "10951350917635";
-	FString encryption = "off";  // Allowing unencrypted on sandbox for now.  
-								 //FString OutputString = "nonce=" + nonceString + "&encryption=" + encryption;
+	// get our player state so we can access all of the saved data
+	if (PlayerController)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [SaveGamePlayer] - found PlayerController"));
+		// Only continue if player data has been loaded.  If a player disconnects before getGamePlayer can finish,
+		// this could be empty.
+		if (PlayerController->PlayerDataLoaded)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [SaveGamePlayer] - PlayerController->PlayerDataLoaded"));
+			playerChar = Cast<AUEtopiaCompetitiveCharacter>(pc->GetPawn());
+			thisPlayerState = pc->PlayerState;
+			playerS = Cast<AMyPlayerState>(thisPlayerState);
 
-								 //TSharedPtr<FJsonObject> PlayerJsonObj;
-	TSharedPtr<FJsonObject> PlayerJsonObj = MakeShareable(new FJsonObject);
-	PlayerJsonObj->SetStringField("nonce", "nonceString");
-	PlayerJsonObj->SetStringField("encryption", encryption);
-	PlayerJsonObj->SetStringField("inventory", InventoryOutputString);
-	PlayerJsonObj->SetStringField("equipment", "hardcoded test");
-	PlayerJsonObj->SetStringField("abilities", "hardcoded test");
-	PlayerJsonObj->SetStringField("interface", "hardcoded test");
-	PlayerJsonObj->SetNumberField("rank", 1600);
-	PlayerJsonObj->SetNumberField("score", 1);
-	PlayerJsonObj->SetNumberField("coordLocationX", 1);
-	PlayerJsonObj->SetNumberField("coordLocationY", 1);
-	PlayerJsonObj->SetNumberField("coordLocationZ", 1);
-	PlayerJsonObj->SetStringField("zoneName", "hardcoded test");
-	PlayerJsonObj->SetStringField("zoneKey", "hardcoded test");
+			// Setup variables to hold encoded json data
+			FString CharacterOutputString;
 
-	FString JsonOutputString;
-	TSharedRef< TJsonWriter<> > Writer = TJsonWriterFactory<>::Create(&JsonOutputString);
-	FJsonSerializer::Serialize(PlayerJsonObj.ToSharedRef(), Writer);
+			// Convert Character Customization data into json friendly 
+			TSharedPtr<FJsonObject> CharacterJsonObject = MakeShareable(new FJsonObject);
+			CharacterJsonObject->SetBoolField("Setup", playerS->CharacterSetup);
+			CharacterJsonObject->SetNumberField("Mesh", playerS->CharacterAppearance.mesh);
+			//CharacterJsonObject->SetNumberField("Texture", playerS->CharacterAppearance.texture);
+			//CharacterJsonObject->SetNumberField("AnimBP", playerS->CharacterAppearance.animBP);
 
-	//UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] SaveGamePlayer - setup output string"));
+			TSharedRef< TJsonWriter<> > CharactertWriter = TJsonWriterFactory<>::Create(&CharacterOutputString);
+			FJsonSerializer::Serialize(CharacterJsonObject.ToSharedRef(), CharactertWriter);
 
-	//OutputString = OutputString + JsonOutputString;
-	//UE_LOG(LogTemp, Log, TEXT("[UMyGameInstance] JsonOutputString: %s"), *JsonOutputString);
-	if (bAttemptUnLock) {
-		//OutputString = OutputString + "&unlock=True";
-		PlayerJsonObj->SetBoolField("unlock", true);
+			FString nonceString = "10951350917635";
+			FString encryption = "off";  // Allowing unencrypted on sandbox for now.  
+
+			TSharedPtr<FJsonObject> PlayerJsonObj = MakeShareable(new FJsonObject);
+			PlayerJsonObj->SetStringField("nonce", "nonceString");
+			PlayerJsonObj->SetStringField("encryption", encryption);
+			PlayerJsonObj->SetStringField("inventory", "hardcoded test");
+			PlayerJsonObj->SetStringField("equipment", "hardcoded test");
+			PlayerJsonObj->SetStringField("abilities", "hardcoded test");
+			PlayerJsonObj->SetStringField("interface", "hardcoded test");
+			PlayerJsonObj->SetStringField("crafting", "hardcoded test");
+			PlayerJsonObj->SetStringField("recipes", "hardcoded test");
+			PlayerJsonObj->SetStringField("character", CharacterOutputString);
+			PlayerJsonObj->SetNumberField("rank", Rank);
+			PlayerJsonObj->SetNumberField("score", Score);
+
+			if (bAttemptUnLock) {
+				PlayerJsonObj->SetBoolField("unlock", true);
+			}
+
+			FString JsonOutputString;
+			TSharedRef< TJsonWriter<> > Writer = TJsonWriterFactory<>::Create(&JsonOutputString);
+			FJsonSerializer::Serialize(PlayerJsonObj.ToSharedRef(), Writer);
+
+			FString access_token = PlayerController->CurrentAccessTokenFromOSS;
+
+			FString APIURI = "/api/v1/game/player/" + gamePlayerKeyId + "/update";
+
+			bool requestSuccess = PerformJsonHttpRequest(&UMyGameInstance::SaveGamePlayerRequestComplete, APIURI, JsonOutputString, access_token);
+			return requestSuccess;
+
+			UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [SaveGamePlayer] - kicking back to login"));
+			FString UrlString = TEXT("/Game/LoginLevel");
+			PlayerController->ClientTravel(UrlString, ETravelType::TRAVEL_Absolute);
+
+		}
+		
 	}
 
-	// Only do this if we actually have a gamePlayerKeyId
-	// We might not...  If a user was not authorized for example.
-
-	if (activePlayer->gamePlayerKeyId.Len() > 1) {
-		FString access_token = activePlayer->PlayerController->CurrentAccessTokenFromOSS;
-
-		FString APIURI = "/api/v1/game/player/" + activePlayer->gamePlayerKeyId + "/update";
-
-		bool requestSuccess = PerformJsonHttpRequest(&UMyGameInstance::SaveGamePlayerRequestComplete, APIURI, JsonOutputString, access_token);
-		return requestSuccess;
-	}
-	else {
-		UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [SaveGamePlayer] - No gamePlayerKeyId found - skipping game player update"));
-		return false;
-	}
-	//return true;
+	return false;
 }
 
 void UMyGameInstance::SaveGamePlayerRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
@@ -1392,6 +1648,7 @@ void UMyGameInstance::SaveGamePlayerRequestComplete(FHttpRequestPtr HttpRequest,
 			{
 				UE_LOG(LogTemp, Log, TEXT("Authorization True"));
 			}
+
 		}
 	}
 }
@@ -1793,12 +2050,11 @@ void UMyGameInstance::PurchaseRequestComplete(FHttpRequestPtr HttpRequest, FHttp
 						{
 
 							// update player inventory
-							if (itemName == "Cube") {
-								UE_LOG(LogTemp, Log, TEXT("Purchase was a cube"));
-								playerS->InventoryCubes = playerS->InventoryCubes + 1;
+							//if (itemName == "Cube") {
+							//	UE_LOG(LogTemp, Log, TEXT("Purchase was a cube"));
+							//	playerS->InventoryCubes = playerS->InventoryCubes + 1;
+							//}
 
-
-							}
 							// update player currency balance
 							playerRecord->currencyCurrent = playerRecord->currencyCurrent - purchaseAmount;
 							playerS->Currency = playerS->Currency - purchaseAmount;
@@ -2064,6 +2320,8 @@ void UMyGameInstance::SubmitMatchMakerResultsComplete(FHttpRequestPtr HttpReques
 			{
 				UE_LOG(LogTemp, Log, TEXT("Authorization False"));
 			}
+			
+
 		}
 	}
 	UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [SubmitMatchResults] Done!"));
@@ -3135,6 +3393,8 @@ bool UMyGameInstance::RecordKill(int32 killerPlayerID, int32 victimPlayerID)
 		{
 			UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [RecordKill] - Ending the Game"));
 
+			FString WinningTeamTitle = TeamList.teams[TeamStillAliveTeamListIndex].title;
+
 			//set winner for the winning team
 			for (int32 b = 0; b < MatchInfo.players.Num(); b++)
 			{
@@ -3145,14 +3405,52 @@ bool UMyGameInstance::RecordKill(int32 killerPlayerID, int32 victimPlayerID)
 				}
 			}
 
-			bool gamesubmitted = SubmitMatchMakerResults();
+
+			// Put this on a timer to give enough time for Save Game Player to complete.
+			//bool gamesubmitted = SubmitMatchMakerResults();
+
+			// Bind the timer delegate
+			SubmitMMResultsTimerDel.BindUFunction(this, FName("SubmitMatchMakerResults"));
+			// Set the timer
+			GetWorld()->GetTimerManager().SetTimer(SubmitMMResultsDelayHandle, SubmitMMResultsTimerDel, 10.f, false, 10.f);
+
 
 			//Deauthorize everyone
+			// And save game player
+
+			// Also save the winning team title into the player state
+			// TODO revisit this.
 
 			for (int32 b = 0; b < MatchInfo.players.Num(); b++)
 			{
 				DeActivatePlayer(MatchInfo.players[b].playerID);
+				SaveGamePlayer(MatchInfo.players[b].userKeyId, true);
+
+				AMyPlayerState* thisMyPlayerState = Cast<AMyPlayerState>(MatchInfo.players[b].PlayerController->PlayerState);
+				if (thisMyPlayerState)
+				{
+					thisMyPlayerState->winningTeamTitle = WinningTeamTitle;
+				}
+
 			}
+
+
+			// Server travel to match results level....
+
+			FString UrlString = TEXT("/Game/Maps/MatchResultsLevel?listen");
+			//World'/Game/LobbyLevel.LobbyLevel'
+			GetWorld()->GetAuthGameMode()->bUseSeamlessTravel = true;
+			GetWorld()->ServerTravel(UrlString);
+
+			// This kick player functionality needs to happen later.
+			// Setting it up on a timer now
+
+			// Bind the timer delegate
+			KickPlayersTimerDel.BindUFunction(this, FName("KickPlayersFromServer"));
+			// Set the timer
+			GetWorld()->GetTimerManager().SetTimer(KickPlayersDelayHandle, KickPlayersTimerDel, 30.f, false, 30.f);
+
+			/*
 
 			// We might need some kind of delay in here because we're going to wipe this data.  plz don't crash
 
@@ -3169,7 +3467,7 @@ bool UMyGameInstance::RecordKill(int32 killerPlayerID, int32 victimPlayerID)
 				UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [RecordKill] - kicking back to login"));
 				pc->ClientTravel(UrlString, ETravelType::TRAVEL_Absolute);
 			}
-
+			*/
 
 
 		}
@@ -3186,12 +3484,12 @@ bool UMyGameInstance::RecordKill(int32 killerPlayerID, int32 victimPlayerID)
 				FString UrlString = TEXT("/Game/Maps/ThirdPersonExampleMap?listen");
 				if (MatchInfo.gameModeTitle == "1v1")
 				{
-					UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetMatchInfo] gameModeTitle = 1v1"));
+					UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [RecordKill] gameModeTitle = 1v1"));
 					// For 1v1 stay on the default map
 					
 				}
 				else {
-					UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetMatchInfo] gameModeTitle != 1v1"));
+					UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [RecordKill] gameModeTitle != 1v1"));
 					// For everything else, travel to the other map - just an example.
 					GetWorld()->GetAuthGameMode()->bUseSeamlessTravel = true;
 					UrlString = TEXT("/Game/Maps/ThirdPersonExampleMap1?listen");
@@ -3205,7 +3503,7 @@ bool UMyGameInstance::RecordKill(int32 killerPlayerID, int32 victimPlayerID)
 
 	}
 	else {
-		UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] AuthorizePlayer - Mode set to continuous"));
+		UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [RecordKill] AuthorizePlayer - Mode set to continuous"));
 		// get attacker activeplayer
 		bool attackerPlayerIDFound = false;
 		int32 killerPlayerIndex = 0;
@@ -3247,25 +3545,6 @@ bool UMyGameInstance::RecordKill(int32 killerPlayerID, int32 victimPlayerID)
 				}
 			}
 
-			// check to see if this victim is already in the kill list
-			/*
-			bool victimIDFoundInKillList = false;
-
-			for (int32 b = 0; b < PlayerRecord.ActivePlayers[killerPlayerIndex].killed.Num(); b++)
-			{
-			if (PlayerRecord.ActivePlayers[killerPlayerIndex].killed[b] == PlayerRecord.ActivePlayers[victimPlayerIndex].playerKey)
-			{
-			UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [RecordKill] - Victim already in kill list"));
-			victimIDFoundInKillList = true;
-			}
-			}
-
-			if (victimIDFoundInKillList == false) {
-			UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [RecordKill] - Adding victim to kill list"));
-			PlayerRecord.ActivePlayers[killerPlayerIndex].killed.Add(PlayerRecord.ActivePlayers[victimPlayerIndex].playerKey);
-			}
-			*/
-
 			// Increase the killer's kill count
 			PlayerRecord.ActivePlayers[killerPlayerIndex].roundKills = PlayerRecord.ActivePlayers[killerPlayerIndex].roundKills + 1;
 			// Increase the killer's balance
@@ -3290,75 +3569,36 @@ bool UMyGameInstance::RecordKill(int32 killerPlayerID, int32 victimPlayerID)
 				AMyPlayerState* thisMyPlayerState = Cast<AMyPlayerState>(thisPlayerState);
 				thisMyPlayerState->ReceiveChatMessage(chatSender, chatMessageText);
 
-				/*
-				// old way
-				TSubclassOf<APlayerController> thisPlayerController = pc;
-				AMyPlayerController* thisPlayerController = Cast<AMyPlayerController>(pc);
-				if (thisPlayerController) {
-				UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [RecordKill] - Cast Controller success"));
-
-				APlayerState* thisPlayerState = thisPlayerController->PlayerState;
-				AMyPlayerState* thisMyPlayerState = Cast<AMyPlayerState>(thisPlayerState);
-				if (thisMyPlayerState) {
-				UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [RecordKill] - Cast State success"));
-				thisMyPlayerState->ReceiveChatMessage(chatSender, chatMessageText);
-				}
-				}
-				*/
 			}
 
-
 		}
-
-		// TODO deal with this
-		/*
-		//Check to see if the game is over
-		if (roundKillsTotal >= MinimumKillsBeforeResultsSubmit) {
-		UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [RecordKill] - Ending the Game"));
-		bool gamesubmitted = SubmitMatchResults();
-
-		//Deauthorize everyone
-		for (int32 b = 0; b < ActivePlayers.Num(); b++)
-		{
-		DeAuthorizePlayer(ActivePlayers[b].playerID);
-		}
-
-		// We might need some kind of delay in here because we're going to wipe this data.  plz don't crash
-
-		// Reset the active players
-		ActivePlayers.Empty();
-		// Kick everyone back to login
-		FString UrlString = TEXT("/Game/MyLoginLevel?listen");
-		GetWorld()->GetAuthGameMode()->bUseSeamlessTravel = true;
-		GetWorld()->ServerTravel(UrlString);
-
-		}
-		else {
-		// Check to see if the round is over
-		if (roundKillsTotal >= MinimumPlayerDeathsBeforeRoundReset) {
-		UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [RecordKill] - Ending the Round"));
-		// travel to the third person map
-		FString UrlString = TEXT("/Game/ThirdPersonCPP/Maps/ThirdPersonExampleMap?listen");
-		GetWorld()->GetAuthGameMode()->bUseSeamlessTravel = true;
-		GetWorld()->ServerTravel(UrlString);
-		}
-		}
-		*/
-
-
 
 	}
-
-
 	return true;
 }
 
+bool UMyGameInstance::KickPlayersFromServer()
+{
+	UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] KickPlayersFromServer."));
 
+	// Kick everyone back to login
+	// travel all clinets back to login
+	APlayerController* pc = NULL;
+	FString UrlString = TEXT("/Game/LoginLevel");
+
+	for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator)
+	{
+		pc = Iterator->Get();
+		UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [RecordKill] - kicking back to login"));
+		pc->ClientTravel(UrlString, ETravelType::TRAVEL_Absolute);
+	}
+	return true;
+}
 
 bool UMyGameInstance::RecordRoundWin(int32 winnerTeamID) {
 	UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] RecordRoundWin."));
-	int32 roundWinnerIndex;
-	int32 roundLoserIndex;
+	int32 roundWinnerIndex =0;
+	int32 roundLoserIndex =0;
 	for (int32 b = 0; b < TeamList.teams.Num(); b++)
 	{
 		if (TeamList.teams[b].number == winnerTeamID) {
@@ -3394,26 +3634,8 @@ bool UMyGameInstance::RecordRoundWin(int32 winnerTeamID) {
 
 		//Deauthorize everyone
 
-		for (int32 b = 0; b < MatchInfo.players.Num(); b++)
-		{
-			DeActivatePlayer(MatchInfo.players[b].playerID);
-		}
 
-		// We might need some kind of delay in here because we're going to wipe this data.  plz don't crash
-
-		// Reset the active players
-		// ActivePlayers.Empty();
-		// Kick everyone back to login
-		// travel all clinets back to login
-		APlayerController* pc = NULL;
-		FString UrlString = TEXT("/Game/LoginLevel");
-
-		for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator)
-		{
-			pc = Iterator->Get();
-			UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [RecordRoundWin] - kicking back to login"));
-			pc->ClientTravel(UrlString, ETravelType::TRAVEL_Absolute);
-		}
+		
 
 
 	}
@@ -3490,23 +3712,42 @@ void UMyGameInstance::AttemptStartMatch()
 	if (IsRunningDedicatedServer())
 	{
 		UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] AttemptStartMatch - Dedicated server found."));
-		// travel to the third person map
-		MatchStarted = true;
-		// Handle travelling to different maps based on the game mode 
-		FString UrlString = TEXT("/Game/Maps/ThirdPersonExampleMap?listen");
-		if (MatchInfo.gameModeTitle == "1v1")
+		// Check that characters are set up.
+
+		bool allPlayersJoined = true;
+		bool allPlayersCharCustComplete = true;
+		for (int32 b = 0; b < MatchInfo.players.Num(); b++)
 		{
-			UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetMatchInfo] gameModeTitle = 1v1"));
-			// For 1v1 stay on the default map
+			if (!MatchInfo.players[b].joined) {
+				allPlayersJoined = false;
+			}
+			if (!MatchInfo.players[b].characterCustomized) {
+				allPlayersCharCustComplete = false;
+			}
 		}
-		else {
-			UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetMatchInfo] gameModeTitle != 1v1"));
-			// For everything else, travel to the other map - just an example.
-			UrlString = TEXT("/Game/Maps/ThirdPersonExampleMap1?listen");
+
+		if (allPlayersJoined && allPlayersCharCustComplete)
+		{
+			// travel to the third person map
+			MatchStarted = true;
+			// Handle travelling to different maps based on the game mode 
+			FString UrlString = TEXT("/Game/Maps/ThirdPersonExampleMap?listen");
+			if (MatchInfo.gameModeTitle == "1v1")
+			{
+				UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetMatchInfo] gameModeTitle = 1v1"));
+				// For 1v1 stay on the default map
+			}
+			else {
+				UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetMatchInfo] gameModeTitle != 1v1"));
+				// For everything else, travel to the other map - just an example.
+				UrlString = TEXT("/Game/Maps/ThirdPersonExampleMap1?listen");
+			}
+
+			GetWorld()->GetAuthGameMode()->bUseSeamlessTravel = true;
+			GetWorld()->ServerTravel(UrlString);
 		}
+
 		
-		GetWorld()->GetAuthGameMode()->bUseSeamlessTravel = true;
-		GetWorld()->ServerTravel(UrlString);
 	}
 }
 

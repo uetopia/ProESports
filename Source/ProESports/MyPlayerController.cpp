@@ -5,10 +5,13 @@
 #include "MyGameInstance.h"
 #include "OnlineSubsystemUtils.h"
 #include "ILoginFlowModule.h"
+#include "UEtopiaCompetitiveCharacter.h"
 //#include "OnlinePartyUEtopia.h"
 #include "Net/UnrealNetwork.h"
 #include "MyPlayerState.h"
 
+typedef TSharedPtr<FJsonValue> JsonValPtr;
+typedef TArray<JsonValPtr> JsonValPtrArray;
 
 
 // FOnlinePartyIdUEtopia
@@ -94,6 +97,24 @@ AMyPlayerController::AMyPlayerController()
 	// Start a player as captain so they can join matchmaker queue without being in a party first
 	IAmCaptain = true;
 
+	GConfig->GetString(
+		TEXT("UEtopia.Client"),
+		TEXT("APIURL"),
+		APIURL,
+		GGameIni
+	);
+
+	GConfig->GetBool(
+		TEXT("UEtopia.Client"),
+		TEXT("CharactersEnabled"),
+		UEtopiaCharactersEnabled,
+		GGameIni
+	);
+
+
+	
+	PlayerDataLoaded = false;
+
 
 }
 
@@ -101,17 +122,6 @@ AMyPlayerController::AMyPlayerController()
 void AMyPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
-
-	// Only run this on the server
-	// this is not working either.  It only runs once, on lobby level.
-	/*
-	if (IsRunningDedicatedServer())
-	{
-		UMyGameInstance* TheGameInstance = Cast<UMyGameInstance>(GetWorld()->GetGameInstance());
-		// Set the custom textures.  These will replicate down to the client, and the client will load them in.
-		customTextures = TheGameInstance->customTextures;
-	}
-	*/
 
 	// Only run this on client
 	if (!IsRunningDedicatedServer())
@@ -160,24 +170,37 @@ void AMyPlayerController::BeginPlay()
 			const auto IdentityInterface = OnlineSub->GetIdentityInterface();
 			if (IdentityInterface.IsValid())
 			{
-				// Creating a local player where we can get the UserID from
-				ULocalPlayer* LocalPlayer = Cast<ULocalPlayer>(Player);
-				TSharedPtr<const FUniqueNetId> UserId = OnlineSub->GetIdentityInterface()->GetUniquePlayerId(LocalPlayer->GetControllerId());
-				if (UserId.IsValid())
+				TSharedPtr <const FUniqueNetId> pid = OnlineSub->GetIdentityInterface()->GetUniquePlayerId(0);
+				AUEtopiaCompetitiveCharacter* playerChar = Cast<AUEtopiaCompetitiveCharacter>(GetPawn());
+				// Attempting to set this up to not crash in PIE, and also still work in standalone
+				// TODO figure out what "simulate" is, and allow this type also
+				if (GetWorld()->WorldType == EWorldType::PIE)
 				{
-					const auto LoginStatus = IdentityInterface->GetLoginStatus(*UserId);
-					if (LoginStatus == ELoginStatus::LoggedIn)
+					UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [AMyPlayerController] Detected PIE - Skipping friends and recent player loading"));
+
+					playerChar->ClientChangeUIState(EConnectUIState::Play);
+				}
+				else
+				{
+					// Creating a local player where we can get the UserID from
+					ULocalPlayer* LocalPlayer = Cast<ULocalPlayer>(Player);
+					TSharedPtr<const FUniqueNetId> UserId = OnlineSub->GetIdentityInterface()->GetUniquePlayerId(LocalPlayer->GetControllerId());
+					if (UserId.IsValid())
 					{
-						
-						OnlineSub->GetFriendsInterface()->ReadFriendsList(0, "default");
-						OnlineSub->GetFriendsInterface()->QueryRecentPlayers(*UserId, "default");
-						// TODO we also want to get the party information here.
-						// But the OSS has no FetchJoinedParties.
-						// Can't use OnAuthenticated either.  Again no OSS support
+						const auto LoginStatus = IdentityInterface->GetLoginStatus(*UserId);
+						if (LoginStatus == ELoginStatus::LoggedIn)
+						{
 
-						// Last resort - sending it as a push from the backend.
+							OnlineSub->GetFriendsInterface()->ReadFriendsList(0, "default");
+							OnlineSub->GetFriendsInterface()->QueryRecentPlayers(*UserId, "default");
+							// TODO we also want to get the party information here.
+							// But the OSS has no FetchJoinedParties.
+							// Can't use OnAuthenticated either.  Again no OSS support
 
-						
+							// Last resort - sending it as a push from the backend.
+
+
+						}
 					}
 				}
 			}
@@ -1068,7 +1091,12 @@ void AMyPlayerController::HandleUserLoginComplete(int32 LocalUserNum, bool bWasS
 		UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [AMyPlayerController] OnlineSub"));
 		FString CurrentAccessTokenFromOSSCache = OnlineSub->GetIdentityInterface()->GetAuthToken(0);
 		ServerSetCurrentAccessTokenFromOSS(CurrentAccessTokenFromOSSCache);
+		RefreshChatChannelList(UserId);
 	}
+	// Returning from a finished match back into the lobby can cause some UI elements to not show up.
+	// Attempting to trigger delegates here which will wake them up.
+	// OnChatChannelsChangedUETopia.Broadcast(); // there are no channels in here
+	OnPartyDataReceivedUETopiaDisplayUI.Broadcast();
 }
 
 
@@ -1081,3 +1109,336 @@ void AMyPlayerController::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >
 	DOREPLIFETIME(AMyPlayerController, customTextures);
 }
 */
+
+
+bool AMyPlayerController::PerformJsonHttpRequest(void(AMyPlayerController::*delegateCallback)(FHttpRequestPtr, FHttpResponsePtr, bool), FString APIURI, FString ArgumentString)
+{
+	UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [AMyPlayerController] PerformHttpRequest"));
+
+	FHttpModule* Http = &FHttpModule::Get();
+	if (!Http) { return false; }
+	if (!Http->IsHttpEnabled()) { return false; }
+
+	FString TargetHost = "https://" + APIURL + APIURI;
+
+	UE_LOG(LogTemp, Log, TEXT("TargetHost: %s"), *TargetHost);
+
+	TSharedRef < IHttpRequest > Request = Http->CreateRequest();
+
+
+	// Get the access token
+	IOnlineSubsystem* OnlineSub = IOnlineSubsystem::Get();
+
+	if (OnlineSub)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [AMyPlayerController] PerformHttpRequest found OnlineSub"));
+		FString AccessToken = OnlineSub->GetIdentityInterface()->GetAuthToken(0);
+		UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [AMyPlayerController] PerformHttpRequest AccessToken: %s "), *AccessToken);
+		Request->SetHeader(TEXT("x-uetopia-auth"), AccessToken);
+	}
+
+
+	Request->SetVerb("POST");
+	Request->SetURL(TargetHost);
+	Request->SetHeader("User-Agent", "UETOPIA_UE4_API_CLIENT/1.0");
+	//Request->SetHeader("Content-Type", "application/x-www-form-urlencoded");
+	Request->SetHeader(TEXT("Content-Type"), TEXT("application/json; charset=utf-8"));
+	//Request->SetHeader("Key", ServerAPIKey);
+	//Request->SetHeader("Sign", "RealSignatureComingIn411");
+	Request->SetContentAsString(ArgumentString);
+
+	Request->OnProcessRequestComplete().BindUObject(this, delegateCallback);
+	if (!Request->ProcessRequest()) { return false; }
+
+	return true;
+}
+
+
+/////////////
+// CHARACTERS
+/////////////
+
+
+bool AMyPlayerController::GetCharacterList()
+{
+	UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [AMyPlayerController] GetCharacterList"));
+
+	// clear out the struct
+	MyCachedCharacters.Empty();
+
+	UMyGameInstance* TheGameInstance = Cast<UMyGameInstance>(GetWorld()->GetGameInstance());
+	FString GameKey = TheGameInstance->GameKey;
+
+	TSharedPtr<FJsonObject> PlayerJsonObj = MakeShareable(new FJsonObject);
+	PlayerJsonObj->SetStringField("gameKeyIdStr", GameKey);
+
+	FString JsonOutputString;
+	TSharedRef< TJsonWriter<> > Writer = TJsonWriterFactory<>::Create(&JsonOutputString);
+	FJsonSerializer::Serialize(PlayerJsonObj.ToSharedRef(), Writer);
+	FString APIURI = "/_ah/api/characters/v1/collectionGetPage";
+	bool requestSuccess = PerformJsonHttpRequest(&AMyPlayerController::GetCharacterListComplete, APIURI, JsonOutputString);
+	return requestSuccess;
+
+}
+
+void AMyPlayerController::GetCharacterListComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
+{
+	if (!HttpResponse.IsValid())
+	{
+		UE_LOG(LogTemp, Log, TEXT("Test failed. NULL response"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("Completed test [%s] Url=[%s] Response=[%d] [%s]"),
+			*HttpRequest->GetVerb(),
+			*HttpRequest->GetURL(),
+			HttpResponse->GetResponseCode(),
+			*HttpResponse->GetContentAsString());
+		FString JsonRaw = *HttpResponse->GetContentAsString();
+		TSharedPtr<FJsonObject> JsonParsed;
+		TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(JsonRaw);
+		if (FJsonSerializer::Deserialize(JsonReader, JsonParsed))
+		{
+			UE_LOG(LogTemp, Log, TEXT("Parsed JSON response successfully."));
+
+			const JsonValPtrArray *CharactersJson = nullptr;
+			JsonParsed->TryGetArrayField("characters", CharactersJson);
+			if (CharactersJson != nullptr)
+			{
+				UE_LOG(LogTemp, Log, TEXT("Found Characters in JSON "));
+				// sometimes crashing here...  adding an extra check
+				if (CharactersJson->Num() > 0)
+				{
+					for (auto characterJson : *CharactersJson) {
+						UE_LOG(LogTemp, Log, TEXT("Found Vendor Item "));
+						auto CharacterObj = characterJson->AsObject();
+						if (CharacterObj.IsValid())
+						{
+							UE_LOG(LogTemp, Log, TEXT("Found Character - it is valid "));
+							FMyCharacterRecord NewCharacter;
+
+							CharacterObj->TryGetStringField("key_id", NewCharacter.key_id);
+							CharacterObj->TryGetStringField("title", NewCharacter.title);
+							CharacterObj->TryGetStringField("description", NewCharacter.description);
+							CharacterObj->TryGetStringField("characterType", NewCharacter.characterType);
+							CharacterObj->TryGetStringField("characterState", NewCharacter.characterState);
+							CharacterObj->TryGetBoolField("characterAlive", NewCharacter.characterAlive);
+							CharacterObj->TryGetBoolField("currentlySelectedActive", NewCharacter.currentlySelectedActive);
+
+							// TODO - run some logic to assign an icon
+							NewCharacter.Icon = nullptr;
+
+							MyCachedCharacters.Add(NewCharacter);
+						}
+					}
+				}
+
+			}
+
+			OnGetCharacterListCompleteDelegate.Broadcast();
+
+		}
+	}
+}
+
+bool AMyPlayerController::CreateCharacter(FString title, FString description, FString characterType, FString characterState)
+{
+	UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [AMyPlayerController] CreateCharacter"));
+
+	TSharedPtr<FJsonObject> PlayerJsonObj = MakeShareable(new FJsonObject);
+
+	UMyGameInstance* TheGameInstance = Cast<UMyGameInstance>(GetWorld()->GetGameInstance());
+	FString GameKey = TheGameInstance->GameKey;
+	PlayerJsonObj->SetStringField("gameKeyIdStr", GameKey);
+
+	PlayerJsonObj->SetStringField("title", title);
+	PlayerJsonObj->SetStringField("description", description);
+	PlayerJsonObj->SetStringField("characterType", characterType);
+	PlayerJsonObj->SetStringField("characterState", characterState);
+
+	FString JsonOutputString;
+	TSharedRef< TJsonWriter<> > Writer = TJsonWriterFactory<>::Create(&JsonOutputString);
+	FJsonSerializer::Serialize(PlayerJsonObj.ToSharedRef(), Writer);
+	FString APIURI = "/_ah/api/characters/v1/create";
+	bool requestSuccess = PerformJsonHttpRequest(&AMyPlayerController::CreateCharacterComplete, APIURI, JsonOutputString);
+	return requestSuccess;
+
+}
+
+void AMyPlayerController::CreateCharacterComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
+{
+	if (!HttpResponse.IsValid())
+	{
+		UE_LOG(LogTemp, Log, TEXT("Test failed. NULL response"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("Completed test [%s] Url=[%s] Response=[%d] [%s]"),
+			*HttpRequest->GetVerb(),
+			*HttpRequest->GetURL(),
+			HttpResponse->GetResponseCode(),
+			*HttpResponse->GetContentAsString());
+		FString JsonRaw = *HttpResponse->GetContentAsString();
+		TSharedPtr<FJsonObject> JsonParsed;
+		TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(JsonRaw);
+		if (FJsonSerializer::Deserialize(JsonReader, JsonParsed))
+		{
+			UE_LOG(LogTemp, Log, TEXT("Parsed JSON response successfully."));
+			// WE don't need to do anything in here...  Maybe trigger a delegate to start a refresh?
+		}
+	}
+}
+
+bool AMyPlayerController::DeleteCharacter(FString characterKeyId)
+{
+	UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [AMyPlayerController] DeleteCharacter"));
+	TSharedPtr<FJsonObject> PlayerJsonObj = MakeShareable(new FJsonObject);
+	UMyGameInstance* TheGameInstance = Cast<UMyGameInstance>(GetWorld()->GetGameInstance());
+	FString GameKey = TheGameInstance->GameKey;
+	PlayerJsonObj->SetStringField("gameKeyId", GameKey);
+	PlayerJsonObj->SetStringField("key_id", characterKeyId);
+	FString JsonOutputString;
+	TSharedRef< TJsonWriter<> > Writer = TJsonWriterFactory<>::Create(&JsonOutputString);
+	FJsonSerializer::Serialize(PlayerJsonObj.ToSharedRef(), Writer);
+	FString APIURI = "/_ah/api/characters/v1/delete";
+	bool requestSuccess = PerformJsonHttpRequest(&AMyPlayerController::DeleteCharacterComplete, APIURI, JsonOutputString);
+	return requestSuccess;
+}
+
+void AMyPlayerController::DeleteCharacterComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
+{
+	if (!HttpResponse.IsValid())
+	{
+		UE_LOG(LogTemp, Log, TEXT("Test failed. NULL response"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("Completed test [%s] Url=[%s] Response=[%d] [%s]"),
+			*HttpRequest->GetVerb(),
+			*HttpRequest->GetURL(),
+			HttpResponse->GetResponseCode(),
+			*HttpResponse->GetContentAsString());
+		FString JsonRaw = *HttpResponse->GetContentAsString();
+		TSharedPtr<FJsonObject> JsonParsed;
+		TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(JsonRaw);
+		if (FJsonSerializer::Deserialize(JsonReader, JsonParsed))
+		{
+			UE_LOG(LogTemp, Log, TEXT("Parsed JSON response successfully."));
+			// WE don't need to do anything in here...  Maybe trigger a delegate to start a refresh?
+		}
+	}
+}
+
+
+bool AMyPlayerController::SelectCharacter(FString characterKeyId)
+{
+	UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [AMyPlayerController] SelectCharacter"));
+	TSharedPtr<FJsonObject> PlayerJsonObj = MakeShareable(new FJsonObject);
+	UMyGameInstance* TheGameInstance = Cast<UMyGameInstance>(GetWorld()->GetGameInstance());
+	FString GameKey = TheGameInstance->GameKey;
+	PlayerJsonObj->SetStringField("gameKeyId", GameKey);
+	PlayerJsonObj->SetStringField("key_id", characterKeyId);
+	FString JsonOutputString;
+	TSharedRef< TJsonWriter<> > Writer = TJsonWriterFactory<>::Create(&JsonOutputString);
+	FJsonSerializer::Serialize(PlayerJsonObj.ToSharedRef(), Writer);
+	FString APIURI = "/_ah/api/characters/v1/select";
+	bool requestSuccess = PerformJsonHttpRequest(&AMyPlayerController::SelectCharacterComplete, APIURI, JsonOutputString);
+	return requestSuccess;
+}
+
+void AMyPlayerController::SelectCharacterComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
+{
+	if (!HttpResponse.IsValid())
+	{
+		UE_LOG(LogTemp, Log, TEXT("Test failed. NULL response"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("Completed test [%s] Url=[%s] Response=[%d] [%s]"),
+			*HttpRequest->GetVerb(),
+			*HttpRequest->GetURL(),
+			HttpResponse->GetResponseCode(),
+			*HttpResponse->GetContentAsString());
+		FString JsonRaw = *HttpResponse->GetContentAsString();
+		TSharedPtr<FJsonObject> JsonParsed;
+		TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(JsonRaw);
+		if (FJsonSerializer::Deserialize(JsonReader, JsonParsed))
+		{
+			UE_LOG(LogTemp, Log, TEXT("Parsed JSON response successfully."));
+			// WE don't need to do anything in here...  Maybe trigger a delegate to start a refresh?
+		}
+	}
+}
+
+
+void AMyPlayerController::SaveCharacterCustomization(FString meshSelection, FString textureSelection)
+{
+	UE_LOG(LogTemp, Log, TEXT("[UETOPIA]AMyPlayerController::SaveCharacterCustomization"));
+
+	int32 MeshIndex;
+	int32 TextureIndex;
+	// convert the strings to int32
+	if (meshSelection == "Base 1")
+	{
+		MeshIndex = 0;
+	}
+	else
+	{
+		MeshIndex = 1;
+	}
+
+	//if (textureSelection == "Base 1")
+	//{
+		TextureIndex = 0;
+	//}
+	//else
+	//{
+	//	TextureIndex = 1;
+	//}
+
+	// Run RPC on server
+	SaveCharacterCustomizationServer(MeshIndex, TextureIndex);
+}
+
+bool AMyPlayerController::SaveCharacterCustomizationServer_Validate(int32 meshSelection, int32 textureSelection)
+{
+	//UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [AUEtopiaPersistCharacter] [ServerAttemptSpawnActor_Validate]  "));
+	return true;
+}
+
+void AMyPlayerController::SaveCharacterCustomizationServer_Implementation(int32 meshSelection, int32 textureSelection)
+{
+	UE_LOG(LogTemp, Log, TEXT("[UETOPIA]AMyPlayerController::SaveCharacterCustomization -running on server"));
+
+	// We need gameInstance because we need to update the matchPlayers struct, and run AttemptStartMatchTimer
+	UMyGameInstance* TheGameInstance = Cast<UMyGameInstance>(GetWorld()->GetGameInstance());
+
+	// Set vars in playerState
+	AMyPlayerState* playerS = Cast<AMyPlayerState>(PlayerState);
+	AUEtopiaCompetitiveCharacter* playerChar = Cast<AUEtopiaCompetitiveCharacter>(GetPawn());
+	
+	playerS->CharacterSetup = true;
+	playerS->CharacterAppearance.mesh = meshSelection;
+
+	//playerS->CharacterAppearance.texture = textureSelection;
+	//playerS->CharacterAppearance.animBP = 0;
+
+	// repnotify out to all clients to change skin
+	playerChar->MyAppearance.mesh = meshSelection;
+	//playerChar->MyAppearance.texture = textureSelection;
+
+	// Set attributes from temp attrs
+	//playerS->SetAllAttributes(MyTempAttrs);
+
+	// Tell this client to change UI state to playing
+	playerChar->ClientChangeUIState(EConnectUIState::Play);
+
+	FMyMatchPlayer* matchplayer = TheGameInstance->getMatchPlayerByPlayerKey(playerS->playerKeyId);
+	if (matchplayer)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[UETOPIA]AMyPlayerController::SaveCharacterCustomization - updating match player"));
+		matchplayer->characterCustomized = true;
+		TheGameInstance->AttemptStartMatch();
+	}
+
+}

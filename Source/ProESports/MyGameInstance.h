@@ -12,26 +12,9 @@
 #include <string>
 //#include "RamaSaveLibrary.h"
 //#include "MyServerPortalActor.h"
+#include "MyTypes.h"
 #include "MyGameInstance.generated.h"
 
-
-
-USTRUCT(BlueprintType)
-struct FMySessionSearchResult {
-	GENERATED_USTRUCT_BODY()
-
-		UPROPERTY(BlueprintReadWrite)
-		FString OwningUserName;
-
-	UPROPERTY(BlueprintReadWrite)
-		FString ServerTitle;
-	// TODO - add more data that we care about
-	UPROPERTY(BlueprintReadWrite)
-		FString ServerKey;
-
-	UPROPERTY(BlueprintReadWrite)
-		int32 SearchIdx;
-};
 
 USTRUCT(BlueprintType)
 struct FMyActivePlayer {
@@ -51,16 +34,23 @@ struct FMyActivePlayer {
 		int32 roundKills;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
 		int32 roundDeaths;
-	//UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-	//	TArray<FString> killed;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		int32 Rank;
+		TArray<FString> killed;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
+		TArray<FUserEvent> events;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
+		int32 rank;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
+		int32 experience;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
+		int32 score;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
 		int32 currencyCurrent;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
 		FString gamePlayerKeyId;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
 		FUniqueNetIdRepl UniqueId;
+
 	AMyPlayerController* PlayerController;
 
 	FTimerHandle GetPlayerInfoDelayHandle;
@@ -73,6 +63,10 @@ struct FMyActivePlayers {
 	GENERATED_USTRUCT_BODY()
 		UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
 		TArray<FMyActivePlayer> ActivePlayers;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
+		FString encryption;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
+		FString nonce;
 };
 
 // Matchmaker specific structs.  These are used with uetopia matchmaker functionality.
@@ -116,8 +110,13 @@ struct FMyMatchPlayer {
 		FString gamePlayerKeyId;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
 		FUniqueNetIdRepl UniqueId;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
+		bool characterCustomized;
 
 	AMyPlayerController* PlayerController;
+
+	FTimerHandle GetPlayerInfoDelayHandle;
+	FTimerDelegate GetPlayerInfoTimerDel;
 
 };
 
@@ -171,62 +170,6 @@ struct FMyTeamList {
 		TArray<FMyTeamInfo> teams;
 };
 
-// KEY ID is actually an INT, but we'll keep it as a string for now.
-USTRUCT(BlueprintType)
-struct FMyServerLink {
-	GENERATED_USTRUCT_BODY()
-		UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString targetServerTitle;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString targetServerKeyId;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		bool targetStatusIsContinuous;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		bool targetStatusCreating;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		bool targetStatusProvisioned;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		bool targetStatusOnline;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		bool targetStatusFull;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		bool targetStatusDead;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		bool permissionCanMount;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		bool permissionCanUserTravel;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		bool permissionCanDismount;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString resourcesUsedToTravel;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString resourceAmountsUsedToTravel;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		int32 currencyCostToTravel;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		float coordLocationX;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		float coordLocationY;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		float coordLocationZ;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString hostConnectionLink;
-	// Testing to see if this will work
-	//UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-	//	AMyServerPortalActor* ServerPortalActorReference;
-};
-
-USTRUCT(BlueprintType)
-struct FMyServerLinks {
-
-	GENERATED_USTRUCT_BODY()
-		UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		TArray<FMyServerLink> links;
-};
-
-
-
-
 class AMyGameSession;
 
 namespace MyGameInstanceState
@@ -255,6 +198,7 @@ class PROESPORTS_API UMyGameInstance : public UGameInstance
 	FString ServerAPIKey;  // Reusing these for matches as well, even though it's a match Key/Secret
 	FString ServerAPISecret;  // Reusing these for matches as well, even though it's a match Key/Secret
 	FString GameKey;
+	
 	// Populated through the get server info API call
 	int32 incrementCurrency; // how much to increment for kills
 	int32 serverCurrency; // how much does this server have to spend/use
@@ -263,6 +207,7 @@ class PROESPORTS_API UMyGameInstance : public UGameInstance
 	// Populated through the get match info API call
 	int32 admissionFee;
 	FString MatchTitle;
+	bool UEtopiaCharactersEnabled; // Switch for running with or without characters
 
 	// Populated through the online subsystem
 	FString ServerSessionHostAddress;
@@ -282,6 +227,7 @@ class PROESPORTS_API UMyGameInstance : public UGameInstance
 	FMyServerLinks ServerLinks;
 
 	// Use this for matchmaker/competitive
+	UPROPERTY(BlueprintReadOnly)
 	FMyMatchInfo MatchInfo;
 	bool MatchStarted;
 	int32 RoundWinsNeededToWinMatch;
@@ -424,12 +370,29 @@ public:
 	bool SubmitMatchResults();
 	void SubmitMatchResultsComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded);
 
+	// Submit MM Results must be the last thing that happens.
+	// Once itis finished, the match API Key and Secret are invalidated, and no more requests will be honored.
+	// Since we need to SaveGamePlayer data as well, we're going to put the Submit MM call on a timer.
+	// 5 sec should be sufficient, but we'll use 10 to be safe.
+	UFUNCTION()
 	bool SubmitMatchMakerResults();
 	void SubmitMatchMakerResultsComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded);
+
+	FTimerHandle SubmitMMResultsDelayHandle;
+	FTimerDelegate SubmitMMResultsTimerDel;
+
+	// We want to kick players off the server so they can return to the lobby and start matchmaking again.
+	// We'll do this on a timer as well so they can see the match results page for a few seconds first.
+	UFUNCTION()
+		bool KickPlayersFromServer();
+
+	FTimerHandle KickPlayersDelayHandle;
+	FTimerDelegate KickPlayersTimerDel;
 
 	// prevent possible duplicate matchmaker submissions
 	bool MatchMakerResultsSubmitted = false;
 
+	UFUNCTION()
 	bool GetGamePlayer(FString playerKeyId, bool bAttemptLock);
 	void GetGamePlayerRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded);
 

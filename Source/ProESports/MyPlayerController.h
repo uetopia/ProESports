@@ -10,6 +10,7 @@
 #include "OnlineFriendsInterface.h"
 #include "OnlineTournamentInterface.h"
 #include "ILoginFlowManager.h"
+#include "MyTypes.h"
 #include "MyPlayerController.generated.h"
 
 // 4.16 login flow thing
@@ -31,190 +32,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnChatRoomMessageReceivedDisplay
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnChatPrivateMessageReceivedDisplayUIDelegate, FString, SenderUserKeyId, FString, ChatMessage);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnTournamentListChangedUETopiaDisplayUIDelegate);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnTournamentDataReadUETopiaDisplayUIDelegate);
-
-USTRUCT(BlueprintType)
-struct FMyFriend {
-
-	GENERATED_USTRUCT_BODY()
-		UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		int32 playerID;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString playerKeyId;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString playerTitle;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		bool bIsOnline;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		bool bIsPlayingThisGame;
-};
-
-USTRUCT(BlueprintType)
-struct FMyFriends {
-
-	GENERATED_USTRUCT_BODY()
-		UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		TArray<FMyFriend> MyFriends;
-};
-
-USTRUCT(BlueprintType)
-struct FMyRecentPlayer {
-
-	GENERATED_USTRUCT_BODY()
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString playerKeyId;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString playerTitle;
-};
-
-USTRUCT(BlueprintType)
-struct FMyRecentPlayers {
-
-	GENERATED_USTRUCT_BODY()
-		UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		TArray<FMyRecentPlayer> MyRecentPlayers;
-};
-
-USTRUCT(BlueprintType)
-struct FMyPartyInvitation {
-
-	GENERATED_USTRUCT_BODY()
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString playerKeyId;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString partyTitle;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString partyKeyId;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString senderUserTitle;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString senderUserKeyId;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		bool bIsInvited;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		bool bIsInviteAccepted;
-};
-
-USTRUCT(BlueprintType)
-struct FMyPartyInvitations {
-
-	GENERATED_USTRUCT_BODY()
-		UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		TArray<FMyPartyInvitation> MyPartyInvitations;
-};
-
-USTRUCT(BlueprintType)
-struct FMyChatChannel {
-
-	GENERATED_USTRUCT_BODY()
-		UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString chatChannelKeyId;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString chatChannelTitle;
-};
-
-USTRUCT(BlueprintType)
-struct FMyChatChannels {
-
-	GENERATED_USTRUCT_BODY()
-		UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		TArray<FMyChatChannel> MyChatChannels;
-};
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGetCharacterListCompleteDelegate);
 
 
-/** Tournaments have a heirarchy of data:
-* Tournament List
-* -- Tournament
-* ---- Tournament Configuration
-* ---- Tournament Team List
-* ------ Tournament Team
-* ---- Tournament Round List
-* ------ Tournament Round
-* -------- Tournament Round Match List
-* ---------- Tournament Round Match
-*/
 
-USTRUCT(BlueprintType)
-struct FMyTournamentRoundMatch {
-
-	GENERATED_USTRUCT_BODY()
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString Status;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString Team1Title;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString Team1KeyId;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		bool Team1Winner;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		bool Team1Loser;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString Team2Title;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString Team2KeyId;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		bool Team2Winner;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		bool Team2Loser;
-
-};
-
-USTRUCT(BlueprintType)
-struct FMyTournamentRound {
-
-	GENERATED_USTRUCT_BODY()
-		UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		int32 RoundIndex;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		TArray<FMyTournamentRoundMatch> RoundMatchList;
-
-};
-
-USTRUCT(BlueprintType)
-struct FMyTournamentTeam {
-
-	GENERATED_USTRUCT_BODY()
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString title;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString KeyId;
-
-
-};
-
-
-USTRUCT(BlueprintType)
-struct FMyTournament {
-
-	GENERATED_USTRUCT_BODY()
-		UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		int32 tournamentId;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString tournamentKeyId;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString tournamentTitle;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		bool bIsGroupTournament;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString groupTitle;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString PrizeDistributionType;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString region;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		FString GameMode;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		int32 donationAmount;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		int32 playerBuyIn;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		TArray<FMyTournamentTeam> TeamList;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UETOPIA")
-		TArray<FMyTournamentRound> RoundList;
-
-};
 
 /**
 * Info associated with a party identifier
@@ -257,6 +78,9 @@ public:
 	FUniqueNetIdRepl UniqueId;
 	FString playerKeyId;
 	int32 playerIDTemp;
+
+	UPROPERTY(BlueprintReadOnly)
+	bool UEtopiaCharactersEnabled; // Switch for running with or without characters
 
 	///////////////////////////////////////////////////////////
 	// This section from
@@ -304,6 +128,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "UETOPIA")
 		void TravelPlayer(const FString& ServerUrl);
+
+	// Keep track of the state of this player's persistent data
+	// Prevent the case of a user disconnecting before the data has been populated and leading to a data wipe.
+	bool PlayerDataLoaded;
 
 	// Friend Functions
 
@@ -362,13 +190,48 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UETOPIA")
 		void JoinTournament(const FString& TournamentKeyId);
 
-	// MATCHMAKER
-	// Can't get these working in here.
-	//UFUNCTION(BlueprintCallable, Category = "UETOPIA")
-	//	bool StartMatchmaking(ULocalPlayer* PlayerOwner, FString MatchType);
+	/////////////////////////////////////////
+	// Character list, create, delete, and select are performed on the client before connecting to the server
+	/////////////////////////////////////////
 
-	//UFUNCTION(BlueprintCallable, Category = "UETOPIA")
-	//	bool CancelMatchmaking(ULocalPlayer* PlayerOwner);
+	UPROPERTY(BlueprintReadOnly, Category = "UETOPIA")
+		TArray<FMyCharacterRecord> MyCachedCharacters;
+
+	UFUNCTION(BlueprintCallable, Category = "UETOPIA")
+		bool GetCharacterList();
+	void GetCharacterListComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded);
+
+	UFUNCTION(BlueprintCallable, Category = "UETOPIA")
+		bool CreateCharacter(FString title, FString description, FString characterType, FString characterState);
+	void CreateCharacterComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded);
+
+	UFUNCTION(BlueprintCallable, Category = "UETOPIA")
+		bool DeleteCharacter(FString characterKeyId);
+	void DeleteCharacterComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded);
+
+	UFUNCTION(BlueprintCallable, Category = "UETOPIA")
+		bool SelectCharacter(FString characterKeyId);
+	void SelectCharacterComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded);
+
+	// Save Character Customization is performed (if it has not been completed already) after login, after getGamePlayerComplete, after the user saves in the char customize UI 
+	UFUNCTION(BlueprintCallable, Category = "UETOPIA")
+		void SaveCharacterCustomization(FString meshSelection, FString textureSelection);
+
+	UFUNCTION(Server, Reliable, WithValidation)
+		void SaveCharacterCustomizationServer(int32 meshSelection, int32 textureSelection);
+
+	/////////////////////////////////////////
+	// HTTP calls which are performed on client
+	/////////////////////////////////////////
+
+	FString APIURL;
+	bool PerformJsonHttpRequest(void(AMyPlayerController::*delegateCallback)(FHttpRequestPtr, FHttpResponsePtr, bool), FString APIURI, FString ArgumentString);
+
+	
+	// This is the delegate to grab on to in the UI
+	// When it fires, it signals that you should refresh the character list
+	UPROPERTY(BlueprintAssignable, Category = "UETOPIA")
+		FOnGetCharacterListCompleteDelegate OnGetCharacterListCompleteDelegate;
 
 
 	// This is the delegate to grab on to in the UI

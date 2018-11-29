@@ -312,10 +312,13 @@ void AMyPlayerState::LoadTexturesOntoActors_Implementation()
 		{
 			UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [AMyPlayerController] ReadCustomTexture_HttpRequestComplete. Material Instance IsValid "));
 
-			TextureIndex = ActorIndex % LoadedTextures.Num();
-			UE_LOG(LogTemp, Warning, TEXT("[UETOPIA] [AMyPlayerController] ReadCustomTexture_HttpRequestComplete. TextureIndex: %d"), TextureIndex);
+			if (LoadedTextures.Num())
+			{
+				TextureIndex = ActorIndex % LoadedTextures.Num();
+				UE_LOG(LogTemp, Warning, TEXT("[UETOPIA] [AMyPlayerState] LoadTexturesOntoActors_Implementation. TextureIndex: %d"), TextureIndex);
 
-			AllActorsItr->MaterialInstance->SetTextureParameterValue(FName("BaseColor"), LoadedTextures[TextureIndex]);
+				AllActorsItr->MaterialInstance->SetTextureParameterValue(FName("BaseColor"), LoadedTextures[TextureIndex]);
+			}
 		}
 
 		//next actor

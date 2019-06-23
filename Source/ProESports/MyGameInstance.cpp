@@ -148,7 +148,7 @@ void UMyGameInstance::Init()
 
 	SessionInterface->AddOnSessionFailureDelegate_Handle(FOnSessionFailureDelegate::CreateUObject(this, &UMyGameInstance::HandleSessionFailure));
 
-	
+
 
 	OnEndSessionCompleteDelegate = FOnEndSessionCompleteDelegate::CreateUObject(this, &UMyGameInstance::OnEndSessionComplete);
 	//OnCreateSessionCompleteDelegate = FOnCreateSessionCompleteDelegate::CreateUObject(this, &UMyGameInstance::OnCreateSessionComplete);
@@ -274,7 +274,7 @@ bool UMyGameInstance::GetServerInfo()
 
 	UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] GetServerInfo"));
 	FString nonceString = "10951350917635";
-	FString encryption = "off";  // Allowing unencrypted on sandbox for now.  
+	FString encryption = "off";  // Allowing unencrypted on sandbox for now.
 	FString OutputString = "nonce=" + nonceString + "&encryption=" + encryption;
 
 	if (ServerSessionHostAddress.Len() > 1) {
@@ -349,7 +349,7 @@ bool UMyGameInstance::GetMatchInfo()
 
 	UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] GetMatchInfo"));
 	FString nonceString = "10951350917635";
-	FString encryption = "off";  // Allowing unencrypted on sandbox for now.  
+	FString encryption = "off";  // Allowing unencrypted on sandbox for now.
 	FString OutputString = "nonce=" + nonceString + "&encryption=" + encryption;
 
 	if (ServerSessionHostAddress.Len() > 1) {
@@ -392,7 +392,7 @@ void UMyGameInstance::GetMatchInfoComplete(FHttpRequestPtr HttpRequest, FHttpRes
 					admissionFee = JsonParsed->GetIntegerField("admissionFee");
 				}
 
-			
+
 				// Put all of our player information in our MatchInfo TArray
 
 				FJsonObjectConverter::JsonObjectStringToUStruct<FMyMatchInfo>(
@@ -457,9 +457,9 @@ void UMyGameInstance::GetMatchInfoComplete(FHttpRequestPtr HttpRequest, FHttpRes
 				// This super simple example is just for demonstration purposes.
 				// The "sponsors" field is an array of whatever the group has entered into the group game custom texture field.
 				// You could request that sponsors return a json file instead of just a link to a png, where they could specify other things to use in game
-				// Promotional messages, additional textures, etc.  
+				// Promotional messages, additional textures, etc.
 				// If you did use a custom json file instead, you'd probably want to do some additional work here, setting values in game state perhaps?
-				
+
 				for (int32 b = 0; b < MatchInfo.sponsors.Num(); b++) {
 					UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetMatchInfoComplete] sponsor_texture: %s"), *MatchInfo.sponsors[b]);
 					customTextures.Add(MatchInfo.sponsors[b]);
@@ -482,7 +482,7 @@ void  UMyGameInstance::GetServerLinks()
 		if (bRequestBeginPlayStarted) {
 			UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] GetServerLinks"));
 			FString nonceString = "10951350917635";
-			FString encryption = "off";  // Allowing unencrypted on sandbox for now.  
+			FString encryption = "off";  // Allowing unencrypted on sandbox for now.
 			FString OutputString = "nonce=" + nonceString + "&encryption=" + encryption;
 			FString APIURI = "/api/v1/server/links";
 			bool requestSuccess = PerformHttpRequest(&UMyGameInstance::GetServerLinksComplete, APIURI, OutputString, ""); // No AccessToken
@@ -629,7 +629,7 @@ bool UMyGameInstance::ActivatePlayer(class AMyPlayerController* NewPlayerControl
 			FString access_token = NewPlayerController->CurrentAccessTokenFromOSS;
 
 			FString nonceString = "10951350917635";
-			FString encryption = "off";  // Allowing unencrypted on sandbox for now.  
+			FString encryption = "off";  // Allowing unencrypted on sandbox for now.
 			FString OutputString = "nonce=" + nonceString + "&encryption=" + encryption;
 
 			FString APIURI = "/api/v1/match/player/" + playerKeyId + "/activate";;
@@ -662,7 +662,7 @@ bool UMyGameInstance::ActivatePlayer(class AMyPlayerController* NewPlayerControl
 			}
 			else {
 				//UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] AuthorizePlayer - THERE WAS NO playerID incoming"));
-				// This is sadly what we expect to see.  
+				// This is sadly what we expect to see.
 			}
 
 			// add the player to the TArray as authorized=false
@@ -679,6 +679,7 @@ bool UMyGameInstance::ActivatePlayer(class AMyPlayerController* NewPlayerControl
 			activeplayer.currencyCurrent = 10;
 			activeplayer.gamePlayerKeyId = nullptr;
 			activeplayer.UniqueId = UniqueId;
+			activeplayer.PlayerController = NewPlayerController;
 
 
 			PlayerRecord.ActivePlayers.Add(activeplayer);
@@ -700,7 +701,7 @@ bool UMyGameInstance::ActivatePlayer(class AMyPlayerController* NewPlayerControl
 			FString access_token = NewPlayerController->CurrentAccessTokenFromOSS;
 
 			FString nonceString = "10951350917635";
-			FString encryption = "off";  // Allowing unencrypted on sandbox for now.  
+			FString encryption = "off";  // Allowing unencrypted on sandbox for now.
 
 			FString OutputString = "nonce=" + nonceString + "&encryption=" + encryption;
 
@@ -720,7 +721,7 @@ bool UMyGameInstance::ActivatePlayer(class AMyPlayerController* NewPlayerControl
 		else {
 			//UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] AuthorizePlayer - update existing record"));
 			PlayerRecord.ActivePlayers[ActivePlayerIndex].playerID = playerID;
-			
+
 
 			// If it is already authorized, Don't resend the http request
 			if (PlayerRecord.ActivePlayers[ActivePlayerIndex].authorized)
@@ -735,7 +736,7 @@ bool UMyGameInstance::ActivatePlayer(class AMyPlayerController* NewPlayerControl
 				//UE_LOG(LogTemp, Log, TEXT("ServerSessionID: %s"), *ServerSessionID);
 
 				FString nonceString = "10951350917635";
-				FString encryption = "off";  // Allowing unencrypted on sandbox for now.  
+				FString encryption = "off";  // Allowing unencrypted on sandbox for now.
 				FString OutputString = "nonce=" + nonceString + "&encryption=" + encryption;
 				FString access_token = NewPlayerController->CurrentAccessTokenFromOSS;
 
@@ -1002,7 +1003,7 @@ void UMyGameInstance::ActivateMatchPlayerRequestComplete(FHttpRequestPtr HttpReq
 							{
 								pc = Iterator->Get();
 
-								// go through the player states to find this player.  
+								// go through the player states to find this player.
 								// we need to set the playerId in here.
 
 								APlayerState* thisPlayerState = pc->PlayerState;
@@ -1089,7 +1090,7 @@ void UMyGameInstance::ActivateMatchPlayerRequestComplete(FHttpRequestPtr HttpReq
 						}
 					}
 					*/
-					
+
 				}
 				else
 				{
@@ -1167,7 +1168,7 @@ bool UMyGameInstance::GetGamePlayer(FString playerKeyId, bool bAttemptLock)
 			FString access_token = ActiveMatchPlayer->PlayerController->CurrentAccessTokenFromOSS;
 
 			FString nonceString = "10951350917635";
-			FString encryption = "off";  // Allowing unencrypted on sandbox for now.  
+			FString encryption = "off";  // Allowing unencrypted on sandbox for now.
 			FString OutputString = "nonce=" + nonceString + "&encryption=" + encryption;
 
 			if (bAttemptLock) {
@@ -1191,7 +1192,7 @@ bool UMyGameInstance::GetGamePlayer(FString playerKeyId, bool bAttemptLock)
 			FString access_token = ActivePlayer->PlayerController->CurrentAccessTokenFromOSS;
 
 			FString nonceString = "10951350917635";
-			FString encryption = "off";  // Allowing unencrypted on sandbox for now.  
+			FString encryption = "off";  // Allowing unencrypted on sandbox for now.
 			FString OutputString = "nonce=" + nonceString + "&encryption=" + encryption;
 
 			if (bAttemptLock) {
@@ -1207,7 +1208,7 @@ bool UMyGameInstance::GetGamePlayer(FString playerKeyId, bool bAttemptLock)
 	}
 
 
-	
+
 	return true;
 }
 
@@ -1286,7 +1287,7 @@ void UMyGameInstance::GetGamePlayerRequestComplete(FHttpRequestPtr HttpRequest, 
 					UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetGamePlayerRequestComplete] - Mode set to continuous"));
 
 					FMyActivePlayer* activePlayer = getPlayerByPlayerKey(JsonParsed->GetStringField("userKeyId"));
-					// TODO - we already have the playerController via activeplayer - get rid of this iterator 
+					// TODO - we already have the playerController via activeplayer - get rid of this iterator
 					for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator)
 					{
 						//UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [GetGamePlayerRequestComplete] - Looking for player Controller"));
@@ -1354,7 +1355,7 @@ void UMyGameInstance::GetGamePlayerRequestComplete(FHttpRequestPtr HttpRequest, 
 
 				/////////////////////////////////////////////////////////////////////////////
 				// At this point we should have our raw json data stored in the player state
-				// Regardless of which game type (competitive/continuous) we want to parse this 
+				// Regardless of which game type (competitive/continuous) we want to parse this
 				// data and change the replicated playerState values so they make it down to the client.
 				/////////////////////////////////////////////////////////////////////////////
 
@@ -1388,13 +1389,13 @@ void UMyGameInstance::GetGamePlayerRequestComplete(FHttpRequestPtr HttpRequest, 
 						// Set up the CharacterAppearance
 						FMyAppearance tempAppearance;
 
-					
+
 						CharacterJsonParsed->TryGetNumberField("Mesh", tempAppearance.mesh);
 						// TODO - add any additional character options here.
 						//CharacterJsonParsed->TryGetNumberField("Texture", tempAppearance.texture);
 						//CharacterJsonParsed->TryGetNumberField("AnimBP", tempAppearance.animBP);
 
-						// TODO - if you are using attributes for your character GAS or custom, 
+						// TODO - if you are using attributes for your character GAS or custom,
 						// You should build out a struct to hold all of the attributes here.
 						// Leaving this as an example:
 						/*
@@ -1406,7 +1407,7 @@ void UMyGameInstance::GetGamePlayerRequestComplete(FHttpRequestPtr HttpRequest, 
 						double Health = 0.0;
 						CharacterJsonParsed->TryGetNumberField("Health", Health);
 						CharAttributes.Health = Health;
-						
+
 
 						// Save them to GAS
 						playerS->SetAllAttributes(CharAttributes);
@@ -1414,7 +1415,7 @@ void UMyGameInstance::GetGamePlayerRequestComplete(FHttpRequestPtr HttpRequest, 
 						playerS->CharacterAppearance = tempAppearance;
 						*/
 
-						// Temporarily muting this.  Some characters may not have been set up recently enough to 
+						// Temporarily muting this.  Some characters may not have been set up recently enough to
 						// have the proper state.
 						// TODO uncomment this once you're sure all characters are state:customized
 						/*
@@ -1453,9 +1454,9 @@ void UMyGameInstance::GetGamePlayerRequestComplete(FHttpRequestPtr HttpRequest, 
 				{
 					UE_LOG(LogTemp, Log, TEXT("CharacterParse FAIL"));
 					// This is what we expect to see on the first login of a new character
-					// Just setup any default values 
+					// Just setup any default values
 					// and send the player UI to the character screen
-					
+
 					playerChar->ClientChangeUIState(EConnectUIState::CharacterCustomize);
 
 				}
@@ -1467,12 +1468,12 @@ void UMyGameInstance::GetGamePlayerRequestComplete(FHttpRequestPtr HttpRequest, 
 
 				PlayerController->PlayerDataLoaded = true;
 
-				
+
 
 
 				// check to see if all players have connected
 				// And if they have completed character customize
-				// It is possible that they haven't so we'll need to attempt start match timer from 
+				// It is possible that they haven't so we'll need to attempt start match timer from
 				// SaveCharacterCustomization
 				bool allPlayersJoined = true;
 				bool allPlayersCharCustComplete = true;
@@ -1495,7 +1496,7 @@ void UMyGameInstance::GetGamePlayerRequestComplete(FHttpRequestPtr HttpRequest, 
 						GetWorld()->GetTimerManager().SetTimer(AttemptStartMatchTimerHandle, this, &UMyGameInstance::AttemptStartMatch, 10.0f, false);
 					}
 				}
-				
+
 			}
 		}
 	}
@@ -1572,7 +1573,7 @@ bool UMyGameInstance::SaveGamePlayer(FString playerKeyId, bool bAttemptUnLock)
 			// Setup variables to hold encoded json data
 			FString CharacterOutputString;
 
-			// Convert Character Customization data into json friendly 
+			// Convert Character Customization data into json friendly
 			TSharedPtr<FJsonObject> CharacterJsonObject = MakeShareable(new FJsonObject);
 			CharacterJsonObject->SetBoolField("Setup", playerS->CharacterSetup);
 			CharacterJsonObject->SetNumberField("Mesh", playerS->CharacterAppearance.mesh);
@@ -1583,7 +1584,7 @@ bool UMyGameInstance::SaveGamePlayer(FString playerKeyId, bool bAttemptUnLock)
 			FJsonSerializer::Serialize(CharacterJsonObject.ToSharedRef(), CharactertWriter);
 
 			FString nonceString = "10951350917635";
-			FString encryption = "off";  // Allowing unencrypted on sandbox for now.  
+			FString encryption = "off";  // Allowing unencrypted on sandbox for now.
 
 			TSharedPtr<FJsonObject> PlayerJsonObj = MakeShareable(new FJsonObject);
 			PlayerJsonObj->SetStringField("nonce", "nonceString");
@@ -1618,7 +1619,7 @@ bool UMyGameInstance::SaveGamePlayer(FString playerKeyId, bool bAttemptUnLock)
 			PlayerController->ClientTravel(UrlString, ETravelType::TRAVEL_Absolute);
 
 		}
-		
+
 	}
 
 	return false;
@@ -1706,7 +1707,7 @@ bool UMyGameInstance::DeActivatePlayer(int32 playerID)
 				FString access_token = CurrentActivePlayer->PlayerController->CurrentAccessTokenFromOSS;
 
 				FString nonceString = "10951350917635";
-				FString encryption = "off";  // Allowing unencrypted on sandbox for now.  
+				FString encryption = "off";  // Allowing unencrypted on sandbox for now.
 
 
 				FString OutputString;
@@ -1725,7 +1726,7 @@ bool UMyGameInstance::DeActivatePlayer(int32 playerID)
 
 				//return requestSuccess;
 
-				// TODO cleanup any TravelAuthorizedActors that this player owns.  
+				// TODO cleanup any TravelAuthorizedActors that this player owns.
 
 			}
 			else {
@@ -1771,7 +1772,7 @@ bool UMyGameInstance::DeActivatePlayer(int32 playerID)
 
 			}
 		}
-		
+
 	}
 	return true;
 
@@ -1797,7 +1798,7 @@ void UMyGameInstance::DeActivateRequestComplete(FHttpRequestPtr HttpRequest, FHt
 		if (FJsonSerializer::Deserialize(JsonReader, JsonParsed))
 		{
 			bool Authorization = JsonParsed->GetBoolField("authorization");
-			//  We don't care too much about the results from this call.  
+			//  We don't care too much about the results from this call.
 			UE_LOG(LogTemp, Log, TEXT("Authorization"));
 			if (Authorization)
 			{
@@ -1818,7 +1819,7 @@ void UMyGameInstance::TransferPlayer(const FString& ServerKey, int32 playerID, b
 	UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] TransferPlayer"));
 
 	FString nonceString = "10951350917635";
-	FString encryption = "off";  // Allowing unencrypted on sandbox for now.  
+	FString encryption = "off";  // Allowing unencrypted on sandbox for now.
 	FString checkOnlyStr = "";
 	if (checkOnly) {
 		checkOnlyStr = "true";
@@ -1975,7 +1976,7 @@ bool UMyGameInstance::Purchase(FString playerKeyId, FString itemName, FString de
 	UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] Purchase"));
 
 	FString nonceString = "10951350917635";
-	FString encryption = "off";  // Allowing unencrypted on sandbox for now.  
+	FString encryption = "off";  // Allowing unencrypted on sandbox for now.
 
 	TSharedPtr<FJsonObject> PlayerJsonObj = MakeShareable(new FJsonObject);
 	PlayerJsonObj->SetStringField("nonce", "nonceString");
@@ -2078,7 +2079,7 @@ bool UMyGameInstance::Reward(FString playerKeyId, FString itemName, FString desc
 	UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] Purchase"));
 
 	FString nonceString = "10951350917635";
-	FString encryption = "off";  // Allowing unencrypted on sandbox for now.  
+	FString encryption = "off";  // Allowing unencrypted on sandbox for now.
 
 	TSharedPtr<FJsonObject> PlayerJsonObj = MakeShareable(new FJsonObject);
 	PlayerJsonObj->SetStringField("nonce", "nonceString");
@@ -2228,7 +2229,7 @@ bool UMyGameInstance::OutgoingChat(int32 playerID, FText message)
 	UE_LOG(LogTemp, Log, TEXT("message is: %s"), *message.ToString());
 
 	FString nonceString = "10951350917635";
-	FString encryption = "off";  // Allowing unencrypted on sandbox for now.  
+	FString encryption = "off";  // Allowing unencrypted on sandbox for now.
 
 	FString OutputString;
 
@@ -2259,7 +2260,7 @@ void UMyGameInstance::OutgoingChatComplete(FHttpRequestPtr HttpRequest, FHttpRes
 			*HttpResponse->GetContentAsString());
 
 		FString JsonRaw = *HttpResponse->GetContentAsString();
-		//  We don't care too much about the results from this call.  
+		//  We don't care too much about the results from this call.
 	}
 	UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [OutgoingChatComplete] Done!"));
 }
@@ -2310,7 +2311,7 @@ void UMyGameInstance::SubmitMatchMakerResultsComplete(FHttpRequestPtr HttpReques
 		if (FJsonSerializer::Deserialize(JsonReader, JsonParsed))
 		{
 			bool Authorization = JsonParsed->GetBoolField("authorization");
-			//  We don't care too much about the results from this call.  
+			//  We don't care too much about the results from this call.
 			UE_LOG(LogTemp, Log, TEXT("Authorization"));
 			if (Authorization)
 			{
@@ -2320,7 +2321,7 @@ void UMyGameInstance::SubmitMatchMakerResultsComplete(FHttpRequestPtr HttpReques
 			{
 				UE_LOG(LogTemp, Log, TEXT("Authorization False"));
 			}
-			
+
 
 		}
 	}
@@ -2358,7 +2359,7 @@ void UMyGameInstance::SubmitMatchResultsComplete(FHttpRequestPtr HttpRequest, FH
 		if (FJsonSerializer::Deserialize(JsonReader, JsonParsed))
 		{
 			bool Authorization = JsonParsed->GetBoolField("authorization");
-			//  We don't care too much about the results from this call.  
+			//  We don't care too much about the results from this call.
 			UE_LOG(LogTemp, Log, TEXT("Authorization"));
 			if (Authorization)
 			{
@@ -2541,7 +2542,7 @@ void UMyGameInstance::OnSearchSessionsComplete(bool bWasSuccessful)
 			const FOnlineSessionSearchResult& Result = SearchResults[IdxResult];
 
 			// setup a ustruct for bp
-			// add the results to the TArray 
+			// add the results to the TArray
 			UE_LOG(LogTemp, Log, TEXT("[UETOPIA] UMyGameInstance::OnSearchSessionsComplete: Adding to MySessionSearchResults"));
 			FMySessionSearchResult searchresult;
 			searchresult.OwningUserName = Result.Session.OwningUserName;
@@ -3267,7 +3268,7 @@ bool UMyGameInstance::RecordKill(int32 killerPlayerID, int32 victimPlayerID)
 		else {
 			UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [RecordKill] Not a suicide"));
 
-			// get victim 
+			// get victim
 			bool victimPlayerIDFound = false;
 			int32 victimPlayerIndex = 0;
 
@@ -3377,7 +3378,7 @@ bool UMyGameInstance::RecordKill(int32 killerPlayerID, int32 victimPlayerID)
 				if (MatchInfo.players[b].teamId == stillAliveTeamId) {
 					MatchInfo.players[b].score = MatchInfo.players[b].score + 200;
 					MatchInfo.players[b].experience = MatchInfo.players[b].experience + 75;
-					
+
 				}
 			}
 
@@ -3486,7 +3487,7 @@ bool UMyGameInstance::RecordKill(int32 killerPlayerID, int32 victimPlayerID)
 				{
 					UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [RecordKill] gameModeTitle = 1v1"));
 					// For 1v1 stay on the default map
-					
+
 				}
 				else {
 					UE_LOG(LogTemp, Log, TEXT("[UETOPIA] [UMyGameInstance] [RecordKill] gameModeTitle != 1v1"));
@@ -3494,7 +3495,7 @@ bool UMyGameInstance::RecordKill(int32 killerPlayerID, int32 victimPlayerID)
 					GetWorld()->GetAuthGameMode()->bUseSeamlessTravel = true;
 					UrlString = TEXT("/Game/Maps/ThirdPersonExampleMap1?listen");
 				}
-				
+
 				GetWorld()->GetAuthGameMode()->bUseSeamlessTravel = true;
 				GetWorld()->ServerTravel(UrlString);
 			}
@@ -3635,7 +3636,7 @@ bool UMyGameInstance::RecordRoundWin(int32 winnerTeamID) {
 		//Deauthorize everyone
 
 
-		
+
 
 
 	}
@@ -3730,7 +3731,7 @@ void UMyGameInstance::AttemptStartMatch()
 		{
 			// travel to the third person map
 			MatchStarted = true;
-			// Handle travelling to different maps based on the game mode 
+			// Handle travelling to different maps based on the game mode
 			FString UrlString = TEXT("/Game/Maps/ThirdPersonExampleMap?listen");
 			if (MatchInfo.gameModeTitle == "1v1")
 			{
@@ -3747,7 +3748,7 @@ void UMyGameInstance::AttemptStartMatch()
 			GetWorld()->ServerTravel(UrlString);
 		}
 
-		
+
 	}
 }
 

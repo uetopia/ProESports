@@ -4,6 +4,8 @@ Competitive multiplayer tools.
 4.22.2 enhanced complete branch requires the 4.22.2 branch of the UEtopia plugin, socketIO plugin (both included), and a patched version of the engine
 https://github.com/uetopia/UnrealEngine/tree/4.22.2_UETOPIA - If you see the landspeeder 404, make sure you are logged in, and have authorized your github account with Epic.
 
+The 4.22.2 Engine Requires Visual Studio 2019, which needs some special configuration to get working: https://horugame.com/unreal-engine-4-22-with-visual-studio-2019/ https://answers.unrealengine.com/questions/888431/view.html https://www.microsoft.com/en-us/download/confirmation.aspx?id=53321
+
 # Live Demo
 https://ue4topia.appspot.com/#/game/5719586641018880
 

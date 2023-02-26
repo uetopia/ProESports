@@ -1,3 +1,7 @@
+# DEPRECATED
+
+Use [unlockd ExampleGame](https://github.com/unlockd-gg/ExampleGame) instead.
+
 # ProESports
 Game code for the ProESports foundation
 
